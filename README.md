@@ -46,20 +46,47 @@ AI 기반 장소 정보 추출
 2. `AGENTS.md`
 3. 기존 구현 코드
 
+## Local development
+
+```bash
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+`.env.local`에 Supabase project URL, anon key, service-role key를 입력합니다. 서비스 역할 키는 서버 Route Handler에서만 사용되며 Git에 커밋하지 않습니다.
+
+Supabase SQL Editor에서 아래 파일을 순서대로 실행합니다.
+
+1. `supabase/migrations/202609040001_phase2_places.sql`
+2. `supabase/seed.sql`
+
+검증 명령:
+
+```bash
+npm test
+npm run build
+```
+
 ## Tech Stack
 
-MVP 구현 과정에서 결정합니다.
+- Next.js App Router / TypeScript / Tailwind CSS
+- Supabase Postgres
+- Next.js Route Handlers
 
 ## Repository Structure
 
 ```text
 reel-place-saver/
 ├── README.md
-├── AGENTS.md
 ├── docs/
 │   ├── PRD.md
+│   ├── AGENTS.md
 │   └── DECISIONS.md
-├── src/
+├── app/
+├── components/
+├── services/places/
+├── supabase/
 ├── tests/
 ├── .env.example
 └── .gitignore
