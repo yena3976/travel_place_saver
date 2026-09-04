@@ -46,6 +46,35 @@ AI 기반 장소 정보 추출
 2. `AGENTS.md`
 3. 기존 구현 코드
 
+## Supabase setup
+
+1. Supabase에서 새 프로젝트를 생성합니다. 한국 기준 권장 리전은 `Northeast Asia (Seoul)`입니다.
+2. Project Settings의 API Keys 화면에서 Project URL, publishable/anon key, secret/service-role key를 확인합니다.
+3. `.env.example`을 `.env.local`로 복사한 뒤 값을 입력합니다.
+
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<publishable-or-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<secret-or-service-role-key>
+```
+
+`SUPABASE_SERVICE_ROLE_KEY`는 RLS를 우회할 수 있는 비밀 값입니다. 브라우저 코드나 `NEXT_PUBLIC_*` 변수에 넣지 마세요. 이 프로젝트에서는 `server-only` 모듈과 Next.js Route Handler 안에서만 사용합니다. `.env.local`은 `.gitignore`에 포함되어 Git에 올라가지 않습니다.
+
+Supabase SQL Editor에서 아래 파일의 전체 내용을 순서대로 실행합니다.
+
+1. `supabase/migrations/202609040001_phase2_places.sql`
+2. `supabase/seed.sql` (개발 확인용, 재실행 가능)
+
+CLI를 사용하는 경우 프로젝트를 연결한 뒤 같은 순서로 적용할 수 있습니다.
+
+```bash
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase db push
+```
+
+이 저장소의 seed는 SQL Editor에서 직접 실행하거나 Supabase CLI 로컬 환경에서 `npx supabase db reset`으로 적용합니다. 운영 데이터로 사용하지 마세요. `mock_` 접두사의 Google Place ID는 테스트 값입니다.
+
 ## Local development
 
 ```bash
@@ -54,12 +83,18 @@ cp .env.example .env.local
 npm run dev
 ```
 
-`.env.local`에 Supabase project URL, anon key, service-role key를 입력합니다. 서비스 역할 키는 서버 Route Handler에서만 사용되며 Git에 커밋하지 않습니다.
+Windows PowerShell에서는 복사 명령으로 `Copy-Item .env.example .env.local`을 사용할 수 있습니다. 환경 변수를 변경했다면 개발 서버를 다시 시작합니다.
 
-Supabase SQL Editor에서 아래 파일을 순서대로 실행합니다.
+## DB connection check
 
-1. `supabase/migrations/202609040001_phase2_places.sql`
-2. `supabase/seed.sql`
+1. Home에서 seed 기준 `3 places across 2 regions`가 표시되는지 확인합니다.
+2. Bali를 열어 Ubud과 Seminyak으로 그룹핑되는지 확인합니다.
+3. Add Place에서 mock success를 저장해 duplicate 화면이 나오는지 확인합니다.
+4. candidates mock에서 여러 장소를 선택해 저장하고, 신규/중복이 섞여도 신규 장소가 저장되는지 확인합니다.
+5. Region Detail에서 장소를 삭제하고 Home count가 갱신되는지 확인합니다.
+6. seed 없이 빈 DB로 확인할 때 Home empty state가 표시되는지 확인합니다.
+
+API 오류는 사용자에게 일반 메시지로 표시되고, 실제 Supabase 오류는 개발 서버 로그에만 기록됩니다.
 
 검증 명령:
 

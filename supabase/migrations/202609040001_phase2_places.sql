@@ -40,3 +40,8 @@ create trigger places_set_updated_at before update on public.places for each row
 
 alter table public.places enable row level security;
 alter table public.saved_places enable row level security;
+
+revoke all on table public.places from anon, authenticated;
+revoke all on table public.saved_places from anon, authenticated;
+grant select, insert, update, delete on table public.places to service_role;
+grant select, insert, update, delete on table public.saved_places to service_role;
