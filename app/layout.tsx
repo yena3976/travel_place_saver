@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Reel Places',
-  description: 'Save travel places from Instagram Reels and browse them by region.',
+  title: 'Instagram Places',
+  description:
+    'Save travel places from Instagram posts and Reels, then browse them by region.',
 };
 
 export default function RootLayout({

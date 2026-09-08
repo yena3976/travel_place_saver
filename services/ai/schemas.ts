@@ -47,7 +47,7 @@ export const placeExtractionSchema = {
           evidence: { type: 'string' },
           source: {
             type: 'string',
-            enum: ['caption', 'video_text', 'both'],
+            enum: ['caption', 'video_text', 'image_text', 'both'],
           },
         },
       },
@@ -100,7 +100,9 @@ export function parsePlaceExtraction(value: unknown): PlaceExtraction {
       place.confidence < 0 ||
       place.confidence > 1 ||
       typeof place.evidence !== 'string' ||
-      !['caption', 'video_text', 'both'].includes(place.source as string)
+      !['caption', 'video_text', 'image_text', 'both'].includes(
+        place.source as string,
+      )
     )
       throw new Error('Invalid AI response.');
     const nullable = (field: unknown) =>

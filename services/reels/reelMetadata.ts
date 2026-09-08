@@ -1,5 +1,6 @@
 import type { ReelContent } from './types.ts';
 import { parseReelVideoSource } from './getReelVideo.ts';
+import { parsePostImageUrls } from './getPostImages.ts';
 
 function decodeHtml(value: string) {
   return value
@@ -37,17 +38,22 @@ function meta(html: string, property: string) {
 export function parseReelHtml(url: string, html: string): ReelContent | null {
   const caption = meta(html, 'og:description') ?? meta(html, 'description');
   const title = meta(html, 'og:title');
+  const thumbnailUrl = meta(html, 'og:image');
+  const video = parseReelVideoSource(html, thumbnailUrl);
+  const imageUrls = url.includes('/p/')
+    ? parsePostImageUrls(url, html, thumbnailUrl)
+    : [];
   if (
-    !caption ||
-    /login • instagram|page isn't available/i.test(`${title} ${caption}`)
+    /login • instagram|page isn't available/i.test(`${title} ${caption}`) ||
+    (!caption && !video && !imageUrls.length)
   )
     return null;
-  const thumbnailUrl = meta(html, 'og:image');
   return {
     url,
     title,
-    caption,
+    caption: caption ?? '',
     thumbnailUrl,
-    video: parseReelVideoSource(html, thumbnailUrl),
+    video,
+    imageUrls,
   };
 }

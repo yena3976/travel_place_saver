@@ -1,5 +1,5 @@
 import 'server-only';
-import { normalizeReelUrl } from '@/lib/reels/normalizeReelUrl';
+import { normalizeInstagramUrl } from '@/lib/instagram/normalizeInstagramUrl';
 import { reelAnalysisModel } from '../ai/config';
 import { AiProviderError, extractPlaces } from '../ai/extractPlaces';
 import { mergePlaceExtraction } from '../ai/mergeExtraction';
@@ -10,6 +10,7 @@ import {
   REEL_ANALYSIS_VERSION,
 } from './classifyAnalysis';
 import { getReelContent, ReelAccessError } from './getReelContent';
+import { getPostImages } from './getPostImages';
 import { getReelVideo } from './getReelVideo';
 import {
   beginAnalysis,
@@ -19,7 +20,7 @@ import {
 } from './repository';
 
 export async function analyzeReel(value: string): Promise<ReelAnalysisResult> {
-  const normalizedUrl = normalizeReelUrl(value);
+  const normalizedUrl = normalizeInstagramUrl(value);
   const existing = await findExistingAnalysis(normalizedUrl);
   if (existing?.result?.analysisVersion === REEL_ANALYSIS_VERSION)
     return { ...existing.result, cached: true };
@@ -28,36 +29,38 @@ export async function analyzeReel(value: string): Promise<ReelAnalysisResult> {
   try {
     const content = await getReelContent(normalizedUrl);
     let video = await getReelVideo(content.video);
+    let images = video ? [] : await getPostImages(content.imageUrls);
     aiStarted = Date.now();
-    const prompt = [
-      `Reel title: ${content.title ?? 'unknown'}`,
-      `Reel caption and metadata: ${content.caption}`,
-      video
-        ? 'Analyze only the sampled visual frames for video evidence. Ignore audio and speech.'
-        : 'No video frames are available. Analyze the caption only.',
-    ].join('\n');
+    const buildPrompt = () =>
+      [
+        `Instagram post title: ${content.title ?? 'unknown'}`,
+        `Instagram post caption and metadata: ${content.caption}`,
+        video
+          ? 'Analyze only the sampled visual frames for video evidence. Ignore audio and speech.'
+          : images.length
+            ? `Analyze all ${images.length} supplied post images for visual evidence.`
+            : 'No visual media is available. Analyze the caption only.',
+      ].join('\n');
     let ai;
     try {
-      ai = await extractPlaces(prompt, video);
+      ai = await extractPlaces(buildPrompt(), { video, images });
     } catch (error) {
       if (
-        !video ||
+        (!video && !images.length) ||
         (error instanceof AiProviderError &&
           (error.kind === 'config' || error.kind === 'quota'))
       )
         throw error;
-      console.warn('reel_video_analysis_failed', {
-        operation: 'reel_video_analysis',
-        frameCount: video.frameCount,
+      console.warn('instagram_visual_analysis_failed', {
+        operation: video
+          ? 'instagram_video_analysis'
+          : 'instagram_image_analysis',
+        frameCount: video?.frameCount ?? 0,
+        imageCount: images.length,
       });
       video = null;
-      ai = await extractPlaces(
-        prompt.replace(
-          'Analyze only the sampled visual frames for video evidence. Ignore audio and speech.',
-          'No video frames are available. Analyze the caption only.',
-        ),
-        null,
-      );
+      images = [];
+      ai = await extractPlaces(buildPrompt());
     }
     const extraction = mergePlaceExtraction(ai.extraction);
     const reel = { url: normalizedUrl, thumbnailUrl: content.thumbnailUrl };
@@ -97,8 +100,13 @@ export async function analyzeReel(value: string): Promise<ReelAnalysisResult> {
     });
     console.info('ai_usage', {
       provider: 'gemini',
-      operation: video ? 'reel_caption_video_analysis' : 'reel_text_analysis',
+      operation: video
+        ? 'instagram_caption_video_analysis'
+        : images.length
+          ? 'instagram_caption_image_analysis'
+          : 'instagram_text_analysis',
       frameCount: video?.frameCount ?? 0,
+      imageCount: images.length,
       model: ai.usage.model,
       inputTokens: ai.usage.inputTokens,
       outputTokens: ai.usage.outputTokens,
@@ -143,7 +151,7 @@ export async function analyzeReel(value: string): Promise<ReelAnalysisResult> {
           ? error.message
           : error instanceof Error
             ? error.message
-            : 'We could not analyze this Reel. Please try again or search manually.',
+            : 'We could not analyze this Instagram post. Please try again or search manually.',
     };
   }
 }

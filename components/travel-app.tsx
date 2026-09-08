@@ -194,7 +194,7 @@ function HomeView({
           <span className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground">
             <MapPin className="size-4" />
           </span>
-          Reel Places
+          Instagram Places
         </div>
         <h1 className="text-[2.35rem] font-semibold leading-none tracking-[-0.05em]">
           Saved places
@@ -225,8 +225,8 @@ function HomeView({
             </EmptyMedia>
             <EmptyTitle className="text-lg">No saved places yet</EmptyTitle>
             <EmptyDescription>
-              Found somewhere worth remembering? Paste its Instagram Reel and
-              we’ll help you save it.
+              Found somewhere worth remembering? Paste its Instagram post or
+              Reel and we’ll help you save it.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -288,11 +288,11 @@ function AddView({
   const [error, setError] = useState('');
   const analyze = () => {
     if (
-      !/^https:\/\/(www\.)?instagram\.com\/reel(s)?\/[A-Za-z0-9_-]+\/?/.test(
+      !/^https:\/\/(www\.)?instagram\.com\/(?:reel|reels|p)\/[A-Za-z0-9_-]+\/?/.test(
         url,
       )
     ) {
-      setError('Paste a valid Instagram Reel URL.');
+      setError('Paste a valid Instagram post or Reel URL.');
       return;
     }
     onAnalyze(url);
@@ -313,7 +313,7 @@ function AddView({
           <Instagram />
         </span>
         <h2 className="text-[2rem] font-semibold leading-tight tracking-[-0.04em]">
-          Paste a Reel.
+          Paste an Instagram post.
           <br />
           We’ll find the place.
         </h2>
@@ -322,7 +322,7 @@ function AddView({
         </p>
       </div>
       <label htmlFor="reel-url" className="mb-2 block text-sm font-semibold">
-        Instagram Reel URL
+        Instagram post or Reel URL
       </label>
       <div
         className={`flex rounded-2xl border bg-card p-1.5 shadow-sm focus-within:ring-4 focus-within:ring-ring/20 ${error ? 'border-destructive' : ''}`}
@@ -334,7 +334,7 @@ function AddView({
             setUrl(event.target.value);
             setError('');
           }}
-          placeholder="https://instagram.com/reel/..."
+          placeholder="https://instagram.com/p/..."
           className="min-w-0 flex-1 bg-transparent px-3 text-base outline-none"
         />
         <Button
@@ -365,7 +365,7 @@ function AddView({
           disabled={!url}
           className="mx-auto flex h-14 w-full max-w-[430px] rounded-2xl text-base"
         >
-          Analyze Reel <Sparkles />
+          Analyze post <Sparkles />
         </Button>
       </div>
     </Shell>
@@ -381,7 +381,7 @@ function AnalyzingView() {
         </div>
         <h1 className="text-2xl font-semibold">Finding this place…</h1>
         <p className="mt-3 max-w-xs text-base text-muted-foreground">
-          Reading the Reel, extracting places, and checking Google Places.
+          Reading the post, extracting places, and checking Google Places.
         </p>
       </div>
     </Shell>
@@ -554,7 +554,7 @@ function NotFoundView({
             We couldn’t identify a place
           </EmptyTitle>
           <EmptyDescription>
-            The Reel may not include enough location detail. Search for it
+            The post may not include enough location detail. Search for it
             manually or try another link.
           </EmptyDescription>
         </EmptyHeader>
@@ -567,7 +567,7 @@ function NotFoundView({
             onClick={onBack}
             className="h-12 rounded-xl px-5"
           >
-            Try another Reel
+            Try another post
           </Button>
         </EmptyContent>
       </Empty>
@@ -937,7 +937,7 @@ function PlaceCard({
           className="flex min-h-9 items-center gap-1.5 text-sm font-semibold text-primary"
         >
           <Instagram className="size-4" />
-          Reel
+          Instagram
         </a>
         {place.googleMapsUrl && (
           <a
@@ -1119,14 +1119,16 @@ export function TravelApp() {
       } else if (data.status === 'not_found') {
         setScreen('not-found');
       } else {
-        setAnalysisMessage(data.message ?? 'We could not analyze this Reel.');
+        setAnalysisMessage(
+          data.message ?? 'We could not analyze this Instagram post.',
+        );
         setScreen('analysis-error');
       }
     } catch (reason) {
       setAnalysisMessage(
         reason instanceof Error
           ? reason.message
-          : 'We could not analyze this Reel.',
+          : 'We could not analyze this Instagram post.',
       );
       setScreen('analysis-error');
     }
@@ -1168,10 +1170,10 @@ export function TravelApp() {
     void Promise.resolve(
       context.registerTool(
         {
-          name: 'start_reel_analysis',
-          title: 'Analyze Reel',
+          name: 'start_instagram_analysis',
+          title: 'Analyze Instagram post',
           description:
-            'Analyze an Instagram Reel and find verified travel places.',
+            'Analyze an Instagram post or Reel and find verified travel places.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -1185,9 +1187,13 @@ export function TravelApp() {
             const data = input as { url?: string };
             if (
               !data.url ||
-              !/^https:\/\/(www\.)?instagram\.com\/reel(s)?\//.test(data.url)
+              !/^https:\/\/(www\.)?instagram\.com\/(?:reel|reels|p)\//.test(
+                data.url,
+              )
             )
-              throw new Error('A valid Instagram Reel URL is required.');
+              throw new Error(
+                'A valid Instagram post or Reel URL is required.',
+              );
             void analyze(data.url);
             return { status: 'analyzing', url: data.url };
           },

@@ -1,6 +1,6 @@
 import 'server-only';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { normalizeReelUrl } from '@/lib/reels/normalizeReelUrl';
+import { normalizeInstagramUrl } from '@/lib/instagram/normalizeInstagramUrl';
 import type {
   PlaceCategory,
   PlaceInput,
@@ -138,7 +138,7 @@ export async function findPlaceByGoogleId(
 
 export async function savePlace(input: PlaceInput) {
   const db = createServerSupabaseClient();
-  const normalizedReelUrl = normalizeReelUrl(input.instagramReelUrl);
+  const normalizedReelUrl = normalizeInstagramUrl(input.instagramReelUrl);
   let placeId: string | null = null;
   if (input.googlePlaceId) {
     const { data, error } = await db

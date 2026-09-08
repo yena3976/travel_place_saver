@@ -1,16 +1,16 @@
 import 'server-only';
-import { normalizeReelUrl } from '@/lib/reels/normalizeReelUrl';
+import { normalizeInstagramUrl } from '@/lib/instagram/normalizeInstagramUrl';
 import { parseReelHtml } from './reelMetadata';
 import type { ReelContent } from './types';
 
 export class ReelAccessError extends Error {
   constructor() {
-    super('This Reel is private, deleted, or unavailable.');
+    super('This Instagram post is private, deleted, or unavailable.');
   }
 }
 
 export async function getReelContent(value: string): Promise<ReelContent> {
-  const url = normalizeReelUrl(value);
+  const url = normalizeInstagramUrl(value);
   let response: Response;
   try {
     response = await fetch(url, {

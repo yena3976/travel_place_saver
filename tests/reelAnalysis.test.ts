@@ -11,6 +11,10 @@ import {
   parseReelVideoSource,
   videoSampling,
 } from '../services/reels/getReelVideo.ts';
+import {
+  MAX_POST_IMAGES,
+  parsePostImageUrls,
+} from '../services/reels/getPostImages.ts';
 import type { ExtractedPlace } from '../services/ai/types.ts';
 import type { VerificationResult } from '../services/places/types.ts';
 
@@ -153,4 +157,66 @@ void test('merges caption and video duplicates and applies context location', ()
   assert.equal(result.places.length, 1);
   assert.equal(result.places[0].source, 'both');
   assert.equal(result.places[0].city, 'Seoul');
+});
+
+void test('extracts ordered carousel images from a regular Instagram post', () => {
+  const postUrl = 'https://www.instagram.com/p/POST123/';
+  const media = {
+    code: 'POST123',
+    carousel_media: [
+      {
+        image_versions2: {
+          candidates: [
+            {
+              url: 'https://cdn.example.com/one-small.jpg',
+              width: 320,
+              height: 320,
+            },
+            {
+              url: 'https://cdn.example.com/one.jpg',
+              width: 1080,
+              height: 1080,
+            },
+          ],
+        },
+      },
+      {
+        image_versions2: {
+          candidates: [
+            {
+              url: 'https://cdn.example.com/two.jpg',
+              width: 1080,
+              height: 1350,
+            },
+          ],
+        },
+      },
+    ],
+  };
+  const html = `<script type="application/json">${JSON.stringify({ payload: { media } })}</script>`;
+  assert.deepEqual(parsePostImageUrls(postUrl, html), [
+    'https://cdn.example.com/one.jpg',
+    'https://cdn.example.com/two.jpg',
+  ]);
+  assert.equal(MAX_POST_IMAGES, 6);
+});
+
+void test('uses the Open Graph image when carousel metadata is unavailable', () => {
+  assert.deepEqual(
+    parsePostImageUrls(
+      'https://www.instagram.com/p/POST123/',
+      '<html></html>',
+      'https://cdn.example.com/fallback.jpg',
+    ),
+    ['https://cdn.example.com/fallback.jpg'],
+  );
+});
+
+void test('accepts an image-only post without caption text', () => {
+  const content = parseReelHtml(
+    'https://www.instagram.com/p/POST123/',
+    '<meta property="og:image" content="https://cdn.example.com/post.jpg">',
+  );
+  assert.equal(content?.caption, '');
+  assert.deepEqual(content?.imageUrls, ['https://cdn.example.com/post.jpg']);
 });

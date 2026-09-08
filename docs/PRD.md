@@ -1,4 +1,5 @@
 # Instagram Reel Place Saver
+
 ## Mobile Web MVP 기획 및 구현 명세
 
 ---
@@ -52,7 +53,7 @@ Instagram에서 여행 장소를 발견해도 이후 다시 활용하려면 여�
 
 ### MVP 핵심 목표
 
-1. Instagram Reel URL에서 장소 후보를 추출한다.
+1. Instagram Reel 또는 일반 Post URL에서 장소 후보를 추출한다.
 2. 실제 존재하는 장소인지 외부 장소 데이터로 검증한다.
 3. 장소의 국가·도시·세부지역 정보를 구조화한다.
 4. 저장 장소를 지역별로 한눈에 확인할 수 있게 한다.
@@ -81,8 +82,8 @@ Instagram에서 여행 장소를 발견해도 이후 다시 활용하려면 여�
 
 ## 포함
 
-- Instagram Reel URL 입력
-- Reel 콘텐츠 분석
+- Instagram Reel / 일반 Post URL 입력
+- Instagram 게시물 콘텐츠 분석
 - 장소명 후보 추출
 - 지역 정보 추출
 - 장소 카테고리 추출
@@ -172,9 +173,11 @@ MVP에서는 별도 Place Detail 화면과 Bottom Navigation을 두지 않는다
 ## 8.1 Home
 
 ### 목적
+
 저장한 장소를 여행 지역별로 확인하고 새로운 장소를 추가한다.
 
 ### 주요 정보
+
 - 전체 저장 장소 수
 - 지역명
 - 국가명
@@ -202,13 +205,14 @@ Thailand · 5 places          >
 
 ### 기능
 
-| 기능 | 동작 |
-|---|---|
-| 지역 선택 | Region Detail 이동 |
-| + 버튼 | Add Place 이동 |
-| Reload | 최신 저장 목록 조회 |
+| 기능      | 동작                |
+| --------- | ------------------- |
+| 지역 선택 | Region Detail 이동  |
+| + 버튼    | Add Place 이동      |
+| Reload    | 최신 저장 목록 조회 |
 
 ### 상태
+
 - Loading
 - Empty
 - Has Places
@@ -230,37 +234,40 @@ Reel 링크를 붙여넣어보세요.
 ## 8.2 Add Place
 
 ### 목적
+
 Instagram Reel URL을 입력한다.
 
 ### 주요 요소
+
 - Reel URL 입력창
 - 붙여넣기 버튼
 - Analyze 버튼
 
 ### 기능
 
-| 기능 | 동작 |
-|---|---|
-| URL 입력 | Reel URL 저장 |
-| 붙여넣기 | Clipboard URL 입력 |
-| Analyze | URL 검증 후 분석 시작 |
+| 기능     | 동작                  |
+| -------- | --------------------- |
+| URL 입력 | Reel URL 저장         |
+| 붙여넣기 | Clipboard URL 입력    |
+| Analyze  | URL 검증 후 분석 시작 |
 
 ### 상태
 
-| 상태 | 처리 |
-|---|---|
-| Default | 입력창 노출 |
-| URL Entered | Analyze 활성화 |
-| Invalid URL | 인라인 오류 |
-| Loading | Analyzing 화면 이동 |
-| Access Error | Reel 접근 실패 안내 |
-| Analysis Error | 재시도 제공 |
+| 상태           | 처리                |
+| -------------- | ------------------- |
+| Default        | 입력창 노출         |
+| URL Entered    | Analyze 활성화      |
+| Invalid URL    | 인라인 오류         |
+| Loading        | Analyzing 화면 이동 |
+| Access Error   | Reel 접근 실패 안내 |
+| Analysis Error | 재시도 제공         |
 
 ---
 
 ## 8.3 Analyzing
 
 ### 목적
+
 장소 분석이 진행 중임을 사용자에게 알린다.
 
 ### 노출 예시
@@ -290,9 +297,11 @@ Place 검색
 ## 8.4 Result — Single Place
 
 ### 조건
+
 장소 하나가 높은 정확도로 검증된 경우.
 
 ### 주요 정보
+
 - Reel Thumbnail
 - 장소명
 - 카테고리
@@ -305,12 +314,12 @@ Place 검색
 
 ### 기능
 
-| 기능 | 동작 |
-|---|---|
-| Instagram Reel | 원본 Reel 이동 |
-| Google Maps | 해당 장소 Maps 이동 |
-| Save Place | 장소 저장 |
-| Back | Add Place 복귀 |
+| 기능           | 동작                |
+| -------------- | ------------------- |
+| Instagram Reel | 원본 Reel 이동      |
+| Google Maps    | 해당 장소 Maps 이동 |
+| Save Place     | 장소 저장           |
+| Back           | Add Place 복귀      |
 
 저장 완료 후 해당 Region Detail 화면으로 이동한다.
 
@@ -319,9 +328,11 @@ Place 검색
 ## 8.5 Result — Multiple Candidates
 
 ### 조건
+
 장소 후보가 여러 개이며 하나로 확정하기 어려운 경우.
 
 ### 기능
+
 - 후보를 하나 이상 선택 / 해제
 - 검증된 후보는 복수 선택 가능
 - 선택한 장소를 한 번에 저장
@@ -334,9 +345,11 @@ Place 검색
 ## 8.6 Result — Multiple Places
 
 ### 조건
+
 하나의 Reel에 여러 장소가 포함된 경우.
 
 ### 기능
+
 - 장소별 선택 / 해제
 - 검증된 장소만 저장 가능
 - 선택한 장소 일괄 저장
@@ -346,9 +359,11 @@ Place 검색
 ## 8.7 Duplicate
 
 ### 조건
+
 동일 Google Place ID가 이미 저장되어 있는 경우.
 
 ### 처리
+
 - 새로운 Place 레코드는 생성하지 않는다.
 - 기존 저장 장소로 이동 가능
 - 동일 장소에 여러 Reel을 저장하는 기능은 MVP 이후 검토한다.
@@ -358,9 +373,11 @@ Place 검색
 ## 8.8 No Place Found
 
 ### 조건
+
 Reel에서 정확한 장소를 특정하지 못한 경우.
 
 ### 기능
+
 - Manual Search 이동
 - Add Place 재시도
 
@@ -369,9 +386,11 @@ Reel에서 정확한 장소를 특정하지 못한 경우.
 ## 8.9 Manual Search
 
 ### 목적
+
 자동 추출에 실패했을 경우 직접 장소를 검색한다.
 
 ### 기능
+
 - 장소명 입력
 - Google Places 기반 검색 결과 노출
 - 결과 선택
@@ -382,9 +401,11 @@ Reel에서 정확한 장소를 특정하지 못한 경우.
 ## 8.10 Region Detail
 
 ### 목적
+
 특정 여행지역에 저장된 장소를 한눈에 확인한다.
 
 ### 그룹핑
+
 ```text
 City / 대표 지역
 ↓
@@ -410,15 +431,16 @@ Seminyak
 
 ### 기능
 
-| 기능 | 동작 |
-|---|---|
-| Instagram | 원본 Reel 이동 |
-| Maps | Google Maps 이동 |
-| ⋯ | Place Action Menu |
-| Delete | 장소 삭제 |
-| Back | Home 이동 |
+| 기능      | 동작              |
+| --------- | ----------------- |
+| Instagram | 원본 Reel 이동    |
+| Maps      | Google Maps 이동  |
+| ⋯         | Place Action Menu |
+| Delete    | 장소 삭제         |
+| Back      | Home 이동         |
 
 ### 상태
+
 - Loading
 - Has Places
 - Empty
@@ -429,6 +451,7 @@ Seminyak
 # 9. Place Card
 
 ### 표시 정보
+
 - Thumbnail
 - 장소명
 - 카테고리
@@ -455,6 +478,7 @@ Seminyak
 4. 영상 음성
 
 추출 대상:
+
 - 장소명
 - 국가
 - 도시
@@ -496,11 +520,11 @@ AI 추출 결과를 그대로 저장하지 않는다.
 
 # 11. Confidence 정책
 
-| Confidence | 처리 |
-|---|---|
-| 0.85 이상 | 단일 장소 Result |
-| 0.5 이상 ~ 0.85 미만 | 복수 후보 제시 |
-| 0.5 미만 | No Place Found / Manual Search |
+| Confidence           | 처리                           |
+| -------------------- | ------------------------------ |
+| 0.85 이상            | 단일 장소 Result               |
+| 0.5 이상 ~ 0.85 미만 | 복수 후보 제시                 |
+| 0.5 미만             | No Place Found / Manual Search |
 
 모든 경우 최종 저장은 사용자가 직접 실행한다.
 
@@ -871,18 +895,23 @@ Location match     25%
 # 20. 주요 예외 케이스
 
 ## 하나의 Reel에 여러 장소
+
 검증 가능한 모든 장소 후보를 제공하고 사용자가 저장 대상을 선택한다.
 
 ## 장소명 없이 지역만 확인된 경우
+
 자동 저장하지 않고 Manual Search로 연결한다.
 
 ## 동일 이름 장소가 여러 지역에 존재
+
 Reel에서 추출한 국가 / 도시 / 지역 정보를 활용해 후보 순위를 정한다.
 
 ## 폐업 장소
+
 폐업 상태를 노출하고 사용자 확인 후 저장 가능하게 한다.
 
 ## Reel 접근 불가
+
 비공개 계정, 삭제 콘텐츠, 접근 제한 등의 오류 상태를 제공한다.
 
 ---
@@ -1086,21 +1115,25 @@ Reel 1건당 평균 비용 계산
 # 26. 성공 기준
 
 ### Place Extraction Success Rate
+
 Reel 분석 후 하나 이상의 장소 후보를 제공한 비율.
 
 목표: **80% 이상**
 
 ### Place Verification Rate
+
 추출한 장소가 외부 Place 데이터와 매칭되는 비율.
 
 목표: **90% 이상**
 
 ### Manual Correction Rate
+
 사용자가 자동 분석 결과를 다른 장소로 수정한 비율.
 
 목표: **20% 이하**
 
 ### Save Completion Rate
+
 분석을 시작한 사용자 중 최종 저장까지 완료한 비율.
 
 ---

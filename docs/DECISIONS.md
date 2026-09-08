@@ -48,3 +48,10 @@
 - Google verification now returns `verified`, `needs_confirmation`, or `not_found`. A result is verified only when its overall score is at least 0.85 and detected/Google name token similarity is at least 0.60. Results scoring at least 0.50 but missing either verified condition require confirmation; lower scores are unmatched.
 - Analysis JSON retains the detected name, matched Google name, match status, and raw verification score. Unmatched vision candidates remain in the result so the user can start Manual Search with the detected name.
 - Multiple-result selection defaults to verified candidates only. Confirmation candidates remain selectable after the two names are shown side by side; unmatched candidates cannot be selected. Analysis cache version 9 invalidates results that lack this safety metadata.
+
+## Instagram regular post support
+
+- Instagram input normalization accepts `/reel`, `/reels`, and regular `/p` URLs. Existing API routes and database column names remain unchanged for backward compatibility, while their values now represent any supported Instagram post.
+- Regular image posts use the Open Graph image as a safe fallback. When embedded media JSON is available, carousel images are kept in post order and capped at six images per analysis.
+- Image posts send all selected images and the caption in one Gemini structured-output request. Video posts reuse the existing DASH video sampling path. Visual download or analysis failure remains non-fatal and falls back to caption-only extraction.
+- Each image is limited to 8 MiB and combined image input to 24 MiB. Analysis cache version 10 prevents older Reel-only results from masking the expanded media behavior.

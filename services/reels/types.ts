@@ -6,6 +6,7 @@ export type ReelContent = {
   caption: string;
   thumbnailUrl: string | null;
   video: ReelVideoSource | null;
+  imageUrls: string[];
 };
 
 export type ReelVideoSource = {
@@ -22,6 +23,11 @@ export type ReelVideoInput = {
   durationMs: number | null;
   fps: number;
   frameCount: number;
+};
+
+export type InstagramImageInput = {
+  data: string;
+  mimeType: string;
 };
 
 export type StoredReelAnalysis = {

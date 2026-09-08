@@ -1,7 +1,7 @@
 import type { ExtractedPlace, ReelAnalysisResult } from '../ai/types.ts';
 import type { VerificationResult } from '../places/types.ts';
 
-export const REEL_ANALYSIS_VERSION = 9;
+export const REEL_ANALYSIS_VERSION = 10;
 
 export function combineConfidence(ai: number, google: number) {
   return Math.round((ai * 0.4 + google * 0.6) * 100) / 100;

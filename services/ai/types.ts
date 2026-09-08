@@ -13,7 +13,7 @@ export type ExtractedPlace = {
   category: PlaceCategory;
   confidence: number;
   evidence: string;
-  source: 'caption' | 'video_text' | 'both';
+  source: 'caption' | 'video_text' | 'image_text' | 'both';
 };
 
 export type PlaceExtraction = {

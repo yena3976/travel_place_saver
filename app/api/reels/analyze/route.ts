@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { url?: unknown };
     if (typeof body.url !== 'string')
       return NextResponse.json(
-        { error: 'A valid Instagram Reel URL is required.' },
+        { error: 'A valid Instagram post or Reel URL is required.' },
         { status: 400 },
       );
     return NextResponse.json(await analyzeReel(body.url));
@@ -14,7 +14,11 @@ export async function POST(request: Request) {
     const invalid =
       error instanceof Error && error.message.includes('Invalid Instagram');
     return NextResponse.json(
-      { error: invalid ? error.message : 'Could not analyze this Reel.' },
+      {
+        error: invalid
+          ? error.message
+          : 'Could not analyze this Instagram post.',
+      },
       { status: invalid ? 400 : 500 },
     );
   }
