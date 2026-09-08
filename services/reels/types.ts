@@ -5,6 +5,23 @@ export type ReelContent = {
   title: string | null;
   caption: string;
   thumbnailUrl: string | null;
+  video: ReelVideoSource | null;
+};
+
+export type ReelVideoSource = {
+  videoUrl: string;
+  durationMs: number | null;
+  thumbnailUrl?: string | null;
+  width?: number | null;
+  height?: number | null;
+};
+
+export type ReelVideoInput = {
+  data: string;
+  mimeType: string;
+  durationMs: number | null;
+  fps: number;
+  frameCount: number;
 };
 
 export type StoredReelAnalysis = {

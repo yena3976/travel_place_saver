@@ -2,24 +2,34 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { normalizeReelUrl } from '../lib/reels/normalizeReelUrl.ts';
 import { estimateCost } from '../services/ai/config.ts';
+import { mergePlaceExtraction } from '../services/ai/mergeExtraction.ts';
 import { parsePlaceExtraction } from '../services/ai/schemas.ts';
 import { classifyVerifiedPlaces } from '../services/reels/classifyAnalysis.ts';
 import { parseReelHtml } from '../services/reels/reelMetadata.ts';
+import {
+  MAX_VIDEO_FRAMES,
+  parseReelVideoSource,
+  videoSampling,
+} from '../services/reels/getReelVideo.ts';
 import type { ExtractedPlace } from '../services/ai/types.ts';
 import type { VerificationResult } from '../services/places/types.ts';
 
 const extracted: ExtractedPlace = {
   name: 'WYAH Art & Creative Space',
+  searchName: 'WYAH Art & Creative Space',
   country: 'Indonesia',
   city: 'Bali',
   area: 'Ubud',
   category: 'Cafe',
   confidence: 0.94,
   evidence: 'The caption names WYAH in Ubud.',
+  source: 'caption',
 };
 const verified: VerificationResult = {
   verified: true,
+  matchStatus: 'verified',
   confidence: 0.9,
+  nameSimilarity: 1,
   candidates: [],
   place: {
     name: 'WYAH UBUD Art & Creative Space',
@@ -65,10 +75,20 @@ void test('classifies single, multiple, and not found results', () => {
     classifyVerifiedPlaces(
       reel,
       [extracted],
-      [{ ...verified, place: null, confidence: 0.2 }],
+      [
+        {
+          ...verified,
+          verified: false,
+          matchStatus: 'not_found',
+          place: null,
+          confidence: 0.2,
+          nameSimilarity: 0,
+        },
+      ],
     ).status,
-    'not_found',
+    'candidates',
   );
+  assert.equal(classifyVerifiedPlaces(reel, [], []).status, 'not_found');
 });
 
 void test('records estimated model cost from actual token usage', () => {
@@ -82,6 +102,55 @@ void test('records estimated model cost from actual token usage', () => {
 void test('parses public metadata and rejects inaccessible Reel HTML', () => {
   const html =
     '<meta property="og:title" content="Bali cafe"><meta property="og:description" content="WYAH in Ubud &amp; Bali"><meta property="og:image" content="https://example.com/thumb.jpg">';
-  assert.equal(parseReelHtml(reel.url, html)?.caption, 'WYAH in Ubud & Bali');
+  const content = parseReelHtml(reel.url, html);
+  assert.equal(content?.caption, 'WYAH in Ubud & Bali');
+  assert.equal(content?.video, null);
   assert.equal(parseReelHtml(reel.url, '<title>Instagram</title>'), null);
+});
+
+void test('decodes numeric HTML entities in Korean Reel captions', () => {
+  const html =
+    '<meta property="og:description" content="&#xb0a8;&#xc591;&#xc8fc; &#xbe0c;&#xb9ac;&#xb044;">';
+  assert.equal(parseReelHtml(reel.url, html)?.caption, '남양주 브리끄');
+});
+
+void test('extracts the highest quality Reel video source and caps sampled frames', () => {
+  const html = String.raw`mediaPresentationDuration=\"PT71.005S\" \u003CRepresentation mimeType=\"video/mp4\" width=\"360\" height=\"640\"\u003E\u003CBaseURL\u003Ehttps:\/\/cdn.example.com\/low.mp4?a=1&amp;b=2\u003C\/BaseURL\u003E\u003C\/Representation\u003E \u003CRepresentation mimeType=\"video/mp4\" width=\"720\" height=\"1280\"\u003E\u003CBaseURL\u003Ehttps:\/\/cdn.example.com\/high.mp4\u003C\/BaseURL\u003E\u003C\/Representation\u003E`;
+  const source = parseReelVideoSource(html);
+  assert.equal(source?.videoUrl, 'https://cdn.example.com/high.mp4');
+  assert.equal(source?.durationMs, 71_005);
+  assert.equal(
+    videoSampling(source?.durationMs ?? null).frameCount,
+    MAX_VIDEO_FRAMES,
+  );
+});
+
+void test('merges caption and video duplicates and applies context location', () => {
+  const result = mergePlaceExtraction({
+    detectedLocation: {
+      country: 'South Korea',
+      city: 'Seoul',
+      area: 'Seochon',
+    },
+    places: [
+      {
+        ...extracted,
+        name: 'ofr Seoul',
+        searchName: 'ofr Seoul',
+        country: null,
+        city: null,
+        area: null,
+      },
+      {
+        ...extracted,
+        name: 'OFR SEOUL',
+        searchName: 'OFR SEOUL',
+        source: 'video_text',
+        confidence: 0.9,
+      },
+    ],
+  });
+  assert.equal(result.places.length, 1);
+  assert.equal(result.places[0].source, 'both');
+  assert.equal(result.places[0].city, 'Seoul');
 });

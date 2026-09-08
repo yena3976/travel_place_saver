@@ -72,9 +72,12 @@ export type VerificationInput = {
   city?: string | null;
   area?: string | null;
 };
+export type MatchStatus = 'verified' | 'needs_confirmation' | 'not_found';
 export type VerificationResult = {
   verified: boolean;
+  matchStatus: MatchStatus;
   confidence: number;
+  nameSimilarity: number;
   place: VerifiedPlace | null;
   candidates: PlaceSearchResult[];
 };

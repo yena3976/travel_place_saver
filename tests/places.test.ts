@@ -7,7 +7,13 @@ import {
   parseAddressComponents,
 } from '../services/places/normalizePlace.ts';
 import { normalizeSearchQuery } from '../services/places/normalizeQuery.ts';
-import { scoreCandidate } from '../services/places/scoreVerification.ts';
+import {
+  hasConsistentLocation,
+  hasCrossScriptNames,
+  matchStatusFor,
+  nameSimilarity,
+  scoreCandidate,
+} from '../services/places/scoreVerification.ts';
 
 const components = [
   { longText: 'Indonesia', shortText: 'ID', types: ['country'] },
@@ -73,4 +79,39 @@ void test('maps business status and scores verification', () => {
       { name: 'Other Cafe', city: 'Tokyo' },
     ) < 0.5,
   );
+});
+
+void test('recognizes a cross-script venue result by its location', () => {
+  assert.equal(hasCrossScriptNames('브리끄', 'Brique'), true);
+  assert.equal(
+    hasCrossScriptNames('Ouvert Coffee Bar', 'Intelligentsia Coffee'),
+    false,
+  );
+  assert.equal(
+    hasConsistentLocation(
+      { name: '브리끄', city: 'Namyangju', country: 'South Korea' },
+      { city: 'Namyangju-si', area: 'Hwado-eup', country: 'South Korea' },
+    ),
+    true,
+  );
+  assert.equal(
+    hasConsistentLocation(
+      { name: '브리끄', city: 'Namyangju', country: 'South Korea' },
+      { city: 'Seoul', country: 'South Korea' },
+    ),
+    false,
+  );
+});
+
+void test('keeps low-name-similarity Google matches below verified quality', () => {
+  const exact = nameSimilarity('Ofr Seoul', 'Ofr Seoul');
+  const ouvert = nameSimilarity(
+    'Ouvert Coffee Bar Seochon',
+    'Intelligentsia Coffee Seochon Coffeebar',
+  );
+  const autoPhoto = nameSimilarity('Auto Photo Co', 'Photosignature');
+  assert.equal(matchStatusFor(1, exact), 'verified');
+  assert.equal(matchStatusFor(0.68, ouvert), 'needs_confirmation');
+  assert.equal(matchStatusFor(0.52, autoPhoto), 'needs_confirmation');
+  assert.equal(matchStatusFor(0.49, 1), 'not_found');
 });

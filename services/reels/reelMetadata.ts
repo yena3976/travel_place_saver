@@ -1,9 +1,15 @@
 import type { ReelContent } from './types.ts';
+import { parseReelVideoSource } from './getReelVideo.ts';
 
 function decodeHtml(value: string) {
   return value
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) =>
+      String.fromCodePoint(Number.parseInt(code, 16)),
+    )
+    .replace(/&#([0-9]+);/g, (_, code: string) =>
+      String.fromCodePoint(Number.parseInt(code, 10)),
+    )
     .replace(/&quot;/g, '"')
-    .replace(/&#x27;|&#39;/g, "'")
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>');
@@ -36,5 +42,12 @@ export function parseReelHtml(url: string, html: string): ReelContent | null {
     /login • instagram|page isn't available/i.test(`${title} ${caption}`)
   )
     return null;
-  return { url, title, caption, thumbnailUrl: meta(html, 'og:image') };
+  const thumbnailUrl = meta(html, 'og:image');
+  return {
+    url,
+    title,
+    caption,
+    thumbnailUrl,
+    video: parseReelVideoSource(html, thumbnailUrl),
+  };
 }

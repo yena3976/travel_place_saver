@@ -31,3 +31,20 @@
 - Completed and not-found results are cached in `reel_analyses` by normalized Reel URL. Failed rows may be retried and are never returned as cached successes.
 - A Reel yields at most five AI place candidates. Each is passed through the existing `verifyPlace()` Google Places workflow.
 - AI requests use a 20 second timeout and at most two attempts, with retry limited to transient failures. Pricing lives in `services/ai/config.ts`.
+- Reel captions decode named, decimal, and hexadecimal HTML entities before extraction so Korean text from Instagram metadata remains readable.
+- Cached analysis rows carry a pipeline version. Parser, prompt, or verification changes increment that version so stale results are analyzed again while current results remain reusable.
+- Cross-script venue names (for example, Korean `브리끄` and Google `Brique`) may be retained as candidates when Google returns exactly one result and both city and country agree. They remain below the fully verified threshold until the user reviews them.
+
+## Phase 4.1 — Reel video text analysis
+
+- Public Reel HTML can contain an escaped DASH manifest even when no `og:video` tag exists. The server extracts the highest-resolution MP4 video representation and duration from that manifest; failure is non-fatal and falls back to caption-only analysis.
+- Reel videos up to 25 MiB are sent inline to the existing Gemini provider. This avoids an additional storage service and remains compatible with the server runtime.
+- Gemini static video processing samples at most 18 frames per Reel. Sampling uses 1 FPS for clips up to 18 seconds and an evenly reduced FPS for longer clips (the 71-second test Reel uses about 0.253 FPS). Repeated frames and non-place subtitles are ignored by the multimodal prompt.
+- Caption and sampled video are analyzed together in one structured multimodal request. The output distinguishes `caption`, `video_text`, and `both`, keeps broad regions in `detectedLocation`, enriches missing venue locations from that context, and deduplicates normalized venue names before `verifyPlace()`.
+- Analysis cache version 8 invalidates prior caption-only results. Usage logs distinguish combined caption/video analysis from text-only analysis and include the sampled frame count.
+
+## Phase 4.2 — Google match safety
+
+- Google verification now returns `verified`, `needs_confirmation`, or `not_found`. A result is verified only when its overall score is at least 0.85 and detected/Google name token similarity is at least 0.60. Results scoring at least 0.50 but missing either verified condition require confirmation; lower scores are unmatched.
+- Analysis JSON retains the detected name, matched Google name, match status, and raw verification score. Unmatched vision candidates remain in the result so the user can start Manual Search with the detected name.
+- Multiple-result selection defaults to verified candidates only. Confirmation candidates remain selectable after the two names are shown side by side; unmatched candidates cannot be selected. Analysis cache version 9 invalidates results that lack this safety metadata.

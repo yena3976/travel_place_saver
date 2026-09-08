@@ -2,6 +2,7 @@ import 'server-only';
 import { estimateCost, reelAnalysisConfig, reelAnalysisModel } from './config';
 import { parsePlaceExtraction, placeExtractionSchema } from './schemas';
 import type { ExtractPlacesResult } from './types';
+import type { ReelVideoInput } from '../reels/types';
 
 type GeminiResponse = {
   candidates?: Array<{
@@ -36,6 +37,7 @@ function responseText(data: GeminiResponse) {
 
 export async function extractPlaces(
   content: string,
+  video?: ReelVideoInput | null,
 ): Promise<ExtractPlacesResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new AiProviderError('config');
@@ -61,13 +63,22 @@ export async function extractPlaces(
             systemInstruction: {
               parts: [
                 {
-                  text: `Extract only explicitly supported real travel places from Instagram Reel metadata. Return all places in one response, up to ${reelAnalysisConfig.maxPlacesPerReel}. Never invent a place. Use null for unknown locations and lower confidence when evidence is weak.`,
+                  text: `Extract only explicitly supported real travel venues from the supplied Instagram Reel caption and video frames. Return all distinct cafes, restaurants, shops, hotels, attractions, or activities in one response, up to ${reelAnalysisConfig.maxPlacesPerReel}. Read on-screen overlays, signs, location stickers, and map labels, including small Korean or Latin-script text. Do not treat a broad neighborhood or city such as Seochon or Seoul as a visitable venue: put it in detectedLocation and use it as the location hint for actual venues. Mark each venue source as caption, video_text, or both, and deduplicate venues seen in both inputs. Ignore ordinary subtitles unrelated to places and do not use audio or speech as evidence. Never invent a place. For searchName, provide the official Latin-script or Google Maps-friendly name when known; otherwise repeat the visible name. Use null for unknown locations and lower confidence when evidence is weak.`,
                 },
               ],
             },
-            contents: [
-              { role: 'user', parts: [{ text: content.slice(0, 12_000) }] },
-            ],
+            contents: [{
+              role: 'user',
+              parts: [
+                ...(video
+                  ? [{
+                      inlineData: { data: video.data, mimeType: video.mimeType },
+                      videoMetadata: { fps: video.fps },
+                    }]
+                  : []),
+                { text: content.slice(0, 12_000) },
+              ],
+            }],
             generationConfig: {
               maxOutputTokens: 1200,
               responseFormat: {

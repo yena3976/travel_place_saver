@@ -1,5 +1,5 @@
 import type { PlaceCategory } from '../places/types.ts';
-import type { PlaceExtraction } from './types.ts';
+import type { ExtractedPlace, PlaceExtraction } from './types.ts';
 
 export const placeExtractionSchema = {
   type: 'object',
@@ -14,15 +14,18 @@ export const placeExtractionSchema = {
         additionalProperties: false,
         required: [
           'name',
+          'searchName',
           'country',
           'city',
           'area',
           'category',
           'confidence',
           'evidence',
+          'source',
         ],
         properties: {
           name: { type: 'string' },
+          searchName: { type: ['string', 'null'] },
           country: { type: ['string', 'null'] },
           city: { type: ['string', 'null'] },
           area: { type: ['string', 'null'] },
@@ -42,6 +45,10 @@ export const placeExtractionSchema = {
           },
           confidence: { type: 'number', minimum: 0, maximum: 1 },
           evidence: { type: 'string' },
+          source: {
+            type: 'string',
+            enum: ['caption', 'video_text', 'both'],
+          },
         },
       },
     },
@@ -92,24 +99,33 @@ export function parsePlaceExtraction(value: unknown): PlaceExtraction {
       typeof place.confidence !== 'number' ||
       place.confidence < 0 ||
       place.confidence > 1 ||
-      typeof place.evidence !== 'string'
+      typeof place.evidence !== 'string' ||
+      !['caption', 'video_text', 'both'].includes(place.source as string)
     )
       throw new Error('Invalid AI response.');
     const nullable = (field: unknown) =>
       typeof field === 'string' ? field : field === null ? null : undefined;
     const country = nullable(place.country);
+    const searchName = nullable(place.searchName);
     const city = nullable(place.city);
     const area = nullable(place.area);
-    if (country === undefined || city === undefined || area === undefined)
+    if (
+      searchName === undefined ||
+      country === undefined ||
+      city === undefined ||
+      area === undefined
+    )
       throw new Error('Invalid AI response.');
     return {
       name: place.name.trim(),
+      searchName,
       country,
       city,
       area,
       category: place.category as PlaceCategory,
       confidence: place.confidence,
       evidence: place.evidence,
+      source: place.source as ExtractedPlace['source'],
     };
   });
   const location = input.detectedLocation;

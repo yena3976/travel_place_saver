@@ -41,6 +41,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { featuredPlace } from '@/lib/mock-data';
+import {
+  defaultSelectedResultIds,
+  resultPlaceId,
+} from '@/lib/result-selection';
 import type { ReelAnalysisResult } from '@/services/ai/types';
 import type {
   PlaceInput,
@@ -62,7 +66,14 @@ type Screen =
   | 'manual-search'
   | 'region';
 type LoadState = 'loading' | 'ready' | 'error';
-type ResultPlace = PlaceInput & { id?: string; image?: string };
+type ResultPlace = PlaceInput & {
+  id?: string;
+  image?: string;
+  detectedPlaceName?: string;
+  googlePlaceName?: string | null;
+  matchStatus?: 'verified' | 'needs_confirmation' | 'not_found';
+  verificationScore?: number;
+};
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -343,7 +354,7 @@ function AddView({
       )}
       <Button
         variant="ghost"
-        onClick={onManualSearch}
+        onClick={() => onManualSearch()}
         className="mt-4 h-12 w-full rounded-xl"
       >
         <Search /> Search for a place manually
@@ -567,11 +578,13 @@ function NotFoundView({
 function ManualSearchView({
   onBack,
   onSelect,
+  initialQuery = '',
 }: {
   onBack: () => void;
   onSelect: (place: VerifiedPlace) => void;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<PlaceSearchResult[]>([]);
   const [state, setState] = useState<
     'default' | 'searching' | 'results' | 'empty' | 'error'
@@ -700,12 +713,10 @@ function CandidatesView({
 }: {
   places: ResultPlace[];
   onBack: () => void;
-  onManualSearch: () => void;
+  onManualSearch: (query?: string) => void;
   onSave: (ids: string[]) => Promise<void>;
 }) {
-  const [selected, setSelected] = useState(
-    places.map((place) => place.id ?? place.googlePlaceId ?? place.name),
-  );
+  const [selected, setSelected] = useState(defaultSelectedResultIds(places));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const toggle = (id: string, checked: boolean) =>
@@ -739,37 +750,102 @@ function CandidatesView({
       </div>
       <div className="space-y-3">
         {places.map((place) => {
-          const id = place.id ?? place.googlePlaceId ?? place.name;
+          const id = resultPlaceId(place);
           const checked = selected.includes(id);
+          const needsConfirmation = place.matchStatus === 'needs_confirmation';
+          const notFound = place.matchStatus === 'not_found';
           return (
             <div
               key={id}
-              className={`flex min-h-24 items-center gap-3 rounded-2xl border bg-card p-4 ${checked ? 'border-primary/55 bg-primary/[0.035]' : ''}`}
+              className={`rounded-2xl border bg-card p-4 ${checked ? 'border-primary/55 bg-primary/[0.035]' : ''} ${needsConfirmation ? 'border-amber-300/80 bg-amber-50/40' : ''}`}
             >
-              {place.image && (
-                <img
-                  src={place.image}
-                  alt=""
-                  className="size-14 shrink-0 rounded-xl object-cover"
-                />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1 text-sm font-semibold text-primary">
-                  <MapPin className="size-3.5" />
-                  {place.area}, {place.city}
-                </p>
-                <h2 className="mt-1 font-bold">{place.name}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {place.category} · {Math.round((place.confidence ?? 0) * 100)}
-                  % match
-                </p>
+              <div className="flex items-start gap-3">
+                {place.image && (
+                  <img
+                    src={place.image}
+                    alt=""
+                    className="size-12 shrink-0 rounded-xl object-cover"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  {place.matchStatus === 'verified' && (
+                    <Badge className="mb-2 bg-secondary text-primary">
+                      <Check className="size-3" /> Google Places verified
+                    </Badge>
+                  )}
+                  {needsConfirmation && (
+                    <Badge className="mb-2 bg-amber-100 text-amber-800">
+                      <CircleAlert className="size-3" /> 확인 필요
+                    </Badge>
+                  )}
+                  {notFound && (
+                    <Badge
+                      variant="outline"
+                      className="mb-2 text-muted-foreground"
+                    >
+                      Google 결과 없음
+                    </Badge>
+                  )}
+                  {needsConfirmation ? (
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground">
+                          영상에서 읽은 이름
+                        </p>
+                        <p className="font-bold">{place.detectedPlaceName}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground">
+                          저장될 Google 장소
+                        </p>
+                        <p className="font-bold text-primary">
+                          {place.googlePlaceName}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <h2 className="font-bold">
+                      {place.detectedPlaceName ?? place.name}
+                    </h2>
+                  )}
+                  <p className="mt-2 flex items-center gap-1 text-sm font-semibold text-primary">
+                    <MapPin className="size-3.5" />
+                    {[place.area, place.city].filter(Boolean).join(', ') ||
+                      'Unknown location'}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {place.category} ·{' '}
+                    {Math.round(
+                      (place.verificationScore ?? place.confidence ?? 0) * 100,
+                    )}
+                    % match
+                  </p>
+                </div>
+                {!notFound && (
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(value) => toggle(id, value === true)}
+                    aria-label={`Select ${place.googlePlaceName ?? place.name}`}
+                    className="size-6 rounded-lg"
+                  />
+                )}
               </div>
-              <Checkbox
-                checked={checked}
-                onCheckedChange={(value) => toggle(id, value === true)}
-                aria-label={`Select ${place.name}`}
-                className="size-6 rounded-lg"
-              />
+              {notFound && (
+                <div className="mt-3 border-t pt-3">
+                  <p className="mb-2 text-sm text-muted-foreground">
+                    Google에서 정확한 장소를 찾지 못했어요.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      onManualSearch(place.detectedPlaceName ?? place.name)
+                    }
+                    className="h-11 w-full rounded-xl"
+                  >
+                    <Search /> 직접 검색
+                  </Button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -777,7 +853,7 @@ function CandidatesView({
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <Button
         variant="ghost"
-        onClick={onManualSearch}
+        onClick={() => onManualSearch()}
         className="mt-5 h-12 w-full rounded-xl"
       >
         None of these — search manually
@@ -992,6 +1068,11 @@ export function TravelApp() {
   const [resultPlace, setResultPlace] = useState<ResultPlace>(featuredPlace);
   const [analysisResults, setAnalysisResults] = useState<ResultPlace[]>([]);
   const [analysisMessage, setAnalysisMessage] = useState('');
+  const [manualSearchQuery, setManualSearchQuery] = useState('');
+  const openManualSearch = (query = '') => {
+    setManualSearchQuery(query);
+    setScreen('manual-search');
+  };
   const loadRegions = useCallback(async () => {
     setLoadState('loading');
     try {
@@ -1052,7 +1133,15 @@ export function TravelApp() {
   };
   const save = async (places: ResultPlace[]) => {
     const payload: PlaceInput[] = places.map(
-      ({ id: _id, image: _image, ...place }) => ({
+      ({
+        id: _id,
+        image: _image,
+        detectedPlaceName: _detectedPlaceName,
+        googlePlaceName: _googlePlaceName,
+        matchStatus: _matchStatus,
+        verificationScore: _verificationScore,
+        ...place
+      }) => ({
         ...place,
         instagramReelUrl: reelUrl,
       }),
@@ -1128,7 +1217,7 @@ export function TravelApp() {
       <AddView
         onBack={() => setScreen('home')}
         onAnalyze={analyze}
-        onManualSearch={() => setScreen('manual-search')}
+        onManualSearch={() => openManualSearch()}
       />
     );
   if (screen === 'analyzing') return <AnalyzingView />;
@@ -1151,7 +1240,7 @@ export function TravelApp() {
     return (
       <NotFoundView
         onBack={() => setScreen('add')}
-        onManualSearch={() => setScreen('manual-search')}
+        onManualSearch={() => openManualSearch()}
       />
     );
   if (screen === 'analysis-error')
@@ -1164,7 +1253,7 @@ export function TravelApp() {
         />
         <Button
           variant="ghost"
-          onClick={() => setScreen('manual-search')}
+          onClick={() => openManualSearch()}
           className="mt-4 h-12 w-full rounded-xl"
         >
           <Search /> Search manually
@@ -1176,11 +1265,11 @@ export function TravelApp() {
       <CandidatesView
         places={analysisResults}
         onBack={() => setScreen('add')}
-        onManualSearch={() => setScreen('manual-search')}
+        onManualSearch={openManualSearch}
         onSave={(ids) =>
           save(
             analysisResults.filter((place) =>
-              ids.includes(place.id ?? place.googlePlaceId ?? place.name),
+              ids.includes(resultPlaceId(place)),
             ),
           )
         }
@@ -1190,6 +1279,7 @@ export function TravelApp() {
     return (
       <ManualSearchView
         onBack={() => setScreen('add')}
+        initialQuery={manualSearchQuery}
         onSelect={(place) => {
           setResultPlace({ ...place, instagramReelUrl: reelUrl });
           setScreen('result');
