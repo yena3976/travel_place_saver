@@ -56,6 +56,7 @@ AI 기반 장소 정보 추출
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<publishable-or-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<secret-or-service-role-key>
+GOOGLE_PLACES_API_KEY=<server-restricted-google-key>
 ```
 
 `SUPABASE_SERVICE_ROLE_KEY`는 RLS를 우회할 수 있는 비밀 값입니다. 브라우저 코드나 `NEXT_PUBLIC_*` 변수에 넣지 마세요. 이 프로젝트에서는 `server-only` 모듈과 Next.js Route Handler 안에서만 사용합니다. `.env.local`은 `.gitignore`에 포함되어 Git에 올라가지 않습니다.
@@ -95,6 +96,17 @@ Windows PowerShell에서는 복사 명령으로 `Copy-Item .env.example .env.loc
 6. seed 없이 빈 DB로 확인할 때 Home empty state가 표시되는지 확인합니다.
 
 API 오류는 사용자에게 일반 메시지로 표시되고, 실제 Supabase 오류는 개발 서버 로그에만 기록됩니다.
+
+## Google Places setup
+
+1. Google Cloud Console에서 프로젝트를 생성하거나 선택하고 Billing을 연결합니다.
+2. **Places API (New)**를 활성화합니다.
+3. Credentials에서 API key를 생성합니다.
+4. Application restriction은 배포 환경에 맞게 서버 IP 또는 지원되는 서버 제한을 적용하고, API restriction은 **Places API (New)**만 허용하는 것을 권장합니다. 로컬 개발 중에는 제한 범위를 넓혀야 할 수 있으므로 키를 별도로 운용하세요.
+5. 키를 `.env.local`의 `GOOGLE_PLACES_API_KEY`에 입력하고 개발 서버를 재시작합니다. 키는 `NEXT_PUBLIC_` 변수에 넣지 않습니다.
+6. Add Place → **Search for a place manually**에서 `WYAH Ubud`처럼 3자 이상 입력합니다. 450ms 후 후보가 표시되고, 후보를 선택하면 Place Details를 거쳐 Result로 이동합니다.
+
+검색은 Places API (New)의 Text Search와 Place Details를 서버 Route Handler에서만 호출합니다. 검색 결과는 정규화된 query 기준으로 서버 메모리에 5분간 캐시하며, 이미 DB에 같은 Google Place ID가 있으면 상세 API를 다시 호출하지 않습니다. 외부 호출은 최대 2회 시도하고 사용량 로그는 개발 서버에서 `places_usage`로 확인할 수 있습니다. 키, Google 원본 오류, 검색 원문은 로그에 남기지 않습니다.
 
 검증 명령:
 
