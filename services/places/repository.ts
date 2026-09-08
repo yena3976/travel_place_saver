@@ -1,6 +1,8 @@
 import 'server-only';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { normalizeInstagramUrl } from '@/lib/instagram/normalizeInstagramUrl';
+import { groupDestinations } from './groupDestinations';
+import { normalizeDestination } from './normalizeDestination';
 import type {
   PlaceCategory,
   PlaceInput,
@@ -16,6 +18,7 @@ type JoinedPlace = {
   category?: string | null;
   country?: string | null;
   city?: string | null;
+  destination?: string | null;
   area?: string | null;
   google_maps_url?: string | null;
 };
@@ -36,44 +39,33 @@ export async function getRegions(): Promise<{
   const { data, error } = await db
     .from('saved_places')
     .select(
-      'id, instagram_thumbnail, instagram_reel_url, places!inner(city,country)',
+      'id, instagram_thumbnail, instagram_reel_url, places!inner(destination,country)',
     );
   if (error) throw error;
-  const grouped = new Map<string, RegionSummary>();
-  for (const row of (data ?? []) as JoinedRow[]) {
-    const place = one(row.places);
-    const region = place?.city ?? 'Unknown';
-    const country = place?.country ?? 'Unknown';
-    const key = `${region}\u0000${country}`;
-    const current = grouped.get(key);
-    if (current) current.count += 1;
-    else
-      grouped.set(key, {
-        region,
-        country,
-        count: 1,
-        thumbnailUrl: row.instagram_thumbnail,
-      });
-  }
+  const regions = groupDestinations(
+    ((data ?? []) as JoinedRow[]).map((row) => ({
+      destination: one(row.places)?.destination,
+      country: one(row.places)?.country,
+      thumbnailUrl: row.instagram_thumbnail,
+    })),
+  );
   return {
     total: data?.length ?? 0,
-    regions: [...grouped.values()].sort((a, b) =>
-      a.region.localeCompare(b.region),
-    ),
+    regions,
   };
 }
 
 export async function getRegionPlaces(
-  region: string,
+  destination: string,
   country?: string | null,
 ): Promise<SavedPlaceView[]> {
   const db = createServerSupabaseClient();
   let query = db
     .from('saved_places')
     .select(
-      'id, instagram_reel_url, instagram_thumbnail, places!inner(id,name,category,country,city,area,google_maps_url)',
+      'id, instagram_reel_url, instagram_thumbnail, places!inner(id,name,category,country,city,destination,area,google_maps_url)',
     )
-    .eq('places.city', region);
+    .eq('places.destination', destination);
   if (country) query = query.eq('places.country', country);
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
@@ -86,6 +78,7 @@ export async function getRegionPlaces(
       category: place.category ?? null,
       country: place.country ?? null,
       city: place.city ?? null,
+      destination: place.destination ?? null,
       area: place.area ?? null,
       thumbnailUrl: row.instagram_thumbnail,
       instagramUrl: row.instagram_reel_url,
@@ -126,7 +119,11 @@ export async function findPlaceByGoogleId(
     country: data.country,
     countryCode: data.country_code,
     city: data.city,
+    destination: data.destination,
     area: data.area,
+    googleLocality: data.google_locality,
+    googleAdminAreaLevel1: data.google_admin_area_level_1,
+    googleAdminAreaLevel2: data.google_admin_area_level_2,
     address: data.address,
     latitude: data.latitude,
     longitude: data.longitude,
@@ -139,6 +136,19 @@ export async function findPlaceByGoogleId(
 export async function savePlace(input: PlaceInput) {
   const db = createServerSupabaseClient();
   const normalizedReelUrl = normalizeInstagramUrl(input.instagramReelUrl);
+  const normalizedLocation = normalizeDestination({
+    country: input.country,
+    countryCode: input.countryCode,
+    locality: input.googleLocality ?? input.city,
+    adminArea1: input.googleAdminAreaLevel1,
+    adminArea2: input.googleAdminAreaLevel2,
+    fallbackArea: input.area,
+  });
+  const destination =
+    input.destination ?? normalizedLocation.destination ?? input.city ?? null;
+  const area = input.destination
+    ? input.area
+    : (normalizedLocation.area ?? input.area ?? null);
   let placeId: string | null = null;
   if (input.googlePlaceId) {
     const { data, error } = await db
@@ -158,7 +168,11 @@ export async function savePlace(input: PlaceInput) {
         country: input.country ?? null,
         country_code: input.countryCode ?? null,
         city: input.city ?? null,
-        area: input.area ?? null,
+        destination,
+        area,
+        google_locality: input.googleLocality ?? null,
+        google_admin_area_level_1: input.googleAdminAreaLevel1 ?? null,
+        google_admin_area_level_2: input.googleAdminAreaLevel2 ?? null,
         address: input.address ?? null,
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,
@@ -190,7 +204,7 @@ export async function savePlace(input: PlaceInput) {
     return {
       status: 'duplicate' as const,
       savedPlaceId: duplicate.id,
-      region: input.city ?? 'Unknown',
+      region: destination ?? 'Unknown',
     };
   const { data, error } = await db
     .from('saved_places')
@@ -210,14 +224,14 @@ export async function savePlace(input: PlaceInput) {
       return {
         status: 'duplicate' as const,
         savedPlaceId: null,
-        region: input.city ?? 'Unknown',
+        region: destination ?? 'Unknown',
       };
     throw error;
   }
   return {
     status: 'saved' as const,
     savedPlaceId: data.id,
-    region: input.city ?? 'Unknown',
+    region: destination ?? 'Unknown',
   };
 }
 

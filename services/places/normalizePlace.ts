@@ -1,5 +1,6 @@
 import type { GoogleAddressComponent, GooglePlace } from './googleTypes.ts';
 import type { PlaceCategory, PlaceStatus, VerifiedPlace } from './types.ts';
+import { normalizeDestination } from './normalizeDestination.ts';
 
 const groups: Array<[PlaceCategory, Set<string>]> = [
   ['Cafe', new Set(['cafe', 'coffee_shop', 'tea_house'])],
@@ -78,24 +79,40 @@ export function parseAddressComponents(
   components: GoogleAddressComponent[] = [],
 ) {
   const country = component(components, ['country']);
-  const locality = component(components, [
-    'locality',
-    'postal_town',
-    'administrative_area_level_2',
-  ]);
-  const region = component(components, ['administrative_area_level_1']);
-  const area = component(components, [
-    'neighborhood',
-    'sublocality_level_2',
+  const locality = component(components, ['locality', 'postal_town']);
+  const adminArea1 = component(components, ['administrative_area_level_1']);
+  const adminArea2 = component(components, ['administrative_area_level_2']);
+  const neighborhood = component(components, ['neighborhood']);
+  const sublocality2 = component(components, ['sublocality_level_2']);
+  const sublocality1 = component(components, [
     'sublocality_level_1',
     'sublocality',
-    'administrative_area_level_3',
   ]);
+  const adminArea3 = component(components, ['administrative_area_level_3']);
+  const normalized = normalizeDestination({
+    country: country?.longText,
+    countryCode: country?.shortText,
+    locality: locality?.longText,
+    adminArea1: adminArea1?.longText,
+    adminArea2: adminArea2?.longText,
+    neighborhood: neighborhood?.longText,
+    sublocality1: sublocality1?.longText,
+    sublocality2: sublocality2?.longText,
+    adminArea3: adminArea3?.longText,
+  });
   return {
     country: country?.longText ?? null,
     countryCode: country?.shortText?.toUpperCase() ?? null,
-    city: locality?.longText ?? region?.longText ?? null,
-    area: area?.longText ?? locality?.longText ?? null,
+    city:
+      locality?.longText ??
+      adminArea2?.longText ??
+      adminArea1?.longText ??
+      null,
+    destination: normalized.destination,
+    area: normalized.area,
+    googleLocality: locality?.longText ?? null,
+    googleAdminAreaLevel1: adminArea1?.longText ?? null,
+    googleAdminAreaLevel2: adminArea2?.longText ?? null,
   };
 }
 

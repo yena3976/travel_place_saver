@@ -7,6 +7,8 @@ import {
   parseAddressComponents,
 } from '../services/places/normalizePlace.ts';
 import { normalizeSearchQuery } from '../services/places/normalizeQuery.ts';
+import { normalizeDestination } from '../services/places/normalizeDestination.ts';
+import { groupDestinations } from '../services/places/groupDestinations.ts';
 import {
   hasConsistentLocation,
   hasCrossScriptNames,
@@ -37,8 +39,87 @@ void test('parses flexible address components', () =>
     country: 'Indonesia',
     countryCode: 'ID',
     city: 'Bali',
+    destination: 'Bali',
     area: 'Ubud',
+    googleLocality: null,
+    googleAdminAreaLevel1: 'Bali',
+    googleAdminAreaLevel2: null,
   }));
+
+void test('normalizes Tokyo wards into one travel destination', () => {
+  assert.deepEqual(
+    normalizeDestination({
+      country: 'Japan',
+      countryCode: 'JP',
+      locality: 'Minato City',
+      adminArea1: 'Tokyo',
+    }),
+    { destination: 'Tokyo', area: 'Minato' },
+  );
+  assert.deepEqual(
+    normalizeDestination({
+      country: 'Japan',
+      countryCode: 'JP',
+      locality: 'Shibuya City',
+      adminArea1: 'Tokyo',
+    }),
+    { destination: 'Tokyo', area: 'Shibuya' },
+  );
+});
+
+void test('normalizes Bali visitor areas under Bali', () => {
+  for (const area of ['Ubud', 'Seminyak']) {
+    assert.deepEqual(
+      normalizeDestination({
+        country: 'Indonesia',
+        countryCode: 'ID',
+        locality: area,
+        adminArea1: 'Bali',
+      }),
+      { destination: 'Bali', area },
+    );
+  }
+});
+
+void test('normalizes Seoul districts and prefers a finer neighborhood', () => {
+  assert.deepEqual(
+    normalizeDestination({
+      country: 'South Korea',
+      countryCode: 'KR',
+      locality: 'Seoul',
+      adminArea1: 'Seoul',
+      sublocality1: 'Jongno-gu',
+      neighborhood: 'Seochon',
+    }),
+    { destination: 'Seoul', area: 'Seochon' },
+  );
+  assert.deepEqual(
+    normalizeDestination({
+      country: 'South Korea',
+      countryCode: 'KR',
+      locality: 'Seoul',
+      fallbackArea: 'Gangnam',
+    }),
+    { destination: 'Seoul', area: 'Gangnam' },
+  );
+});
+
+void test('groups Tokyo and a normalized Minato row into one Home card', () => {
+  assert.deepEqual(
+    groupDestinations([
+      { destination: 'Tokyo', country: 'Japan', thumbnailUrl: 'a.jpg' },
+      { destination: 'Tokyo', country: 'Japan', thumbnailUrl: 'b.jpg' },
+    ]),
+    [
+      {
+        destination: 'Tokyo',
+        country: 'Japan',
+        count: 2,
+        thumbnailUrl: 'a.jpg',
+      },
+    ],
+  );
+});
 void test('normalizes Google place details', () => {
   const place = normalizeGooglePlace({
     id: 'google-1',

@@ -10,7 +10,11 @@ export type PlaceInput = {
   country?: string | null;
   countryCode?: string | null;
   city?: string | null;
+  destination?: string | null;
   area?: string | null;
+  googleLocality?: string | null;
+  googleAdminAreaLevel1?: string | null;
+  googleAdminAreaLevel2?: string | null;
   address?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -25,7 +29,7 @@ export type PlaceInput = {
 };
 
 export type RegionSummary = {
-  region: string;
+  destination: string;
   country: string;
   count: number;
   thumbnailUrl: string | null;
@@ -37,6 +41,7 @@ export type SavedPlaceView = {
   category: string | null;
   country: string | null;
   city: string | null;
+  destination: string | null;
   area: string | null;
   thumbnailUrl: string | null;
   instagramUrl: string;
@@ -60,7 +65,11 @@ export type PlaceSearchResult = {
   category: PlaceCategory;
   country: string | null;
   city: string | null;
+  destination: string | null;
   area: string | null;
+  googleLocality: string | null;
+  googleAdminAreaLevel1: string | null;
+  googleAdminAreaLevel2: string | null;
 };
 export type VerifiedPlace = Omit<PlaceInput, 'instagramReelUrl'> & {
   googlePlaceId: string;

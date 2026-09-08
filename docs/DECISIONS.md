@@ -55,3 +55,10 @@
 - Regular image posts use the Open Graph image as a safe fallback. When embedded media JSON is available, carousel images are kept in post order and capped at six images per analysis.
 - Image posts send all selected images and the caption in one Gemini structured-output request. Video posts reuse the existing DASH video sampling path. Visual download or analysis failure remains non-fatal and falls back to caption-only extraction.
 - Each image is limited to 8 MiB and combined image input to 24 MiB. Analysis cache version 10 prevents older Reel-only results from masking the expanded media behavior.
+
+## Destination grouping normalization
+
+- UI grouping uses `country + destination`, not Google `city`. Region Detail continues to group places by `area` within the selected destination.
+- `city` remains for backward compatibility. Google `locality`, `administrative_area_level_1`, and `administrative_area_level_2` are also stored separately so future mapping improvements do not depend on a lossy display value.
+- A shared normalizer handles a small MVP exception map: Tokyo special wards, Seoul districts, and Bali visitor areas. Unmapped locations conservatively use locality, then admin level 1, then admin level 2 as the destination.
+- Existing rows are backfilled in place. No place or saved-place rows are deleted or recreated.

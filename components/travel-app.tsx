@@ -152,7 +152,7 @@ function RegionCard({
       )}
       <span className="min-w-0 flex-1">
         <span className="block text-lg font-bold tracking-tight">
-          {region.region}
+          {region.destination}
         </span>
         <span className="mt-1 flex items-center gap-1 text-sm font-medium text-muted-foreground">
           <MapPin className="size-3.5 text-primary" />
@@ -256,7 +256,7 @@ function HomeView({
           <div className="space-y-3">
             {regions.map((region) => (
               <RegionCard
-                key={`${region.region}-${region.country}`}
+                key={`${region.destination}-${region.country}`}
                 region={region}
                 onClick={() => onRegion(region)}
               />
@@ -410,7 +410,8 @@ function PlacePreview({ place }: { place: ResultPlace }) {
         )}
         <p className="mb-2 flex items-center gap-1.5 text-base font-semibold text-primary">
           <MapPin className="size-4" />
-          {place.area ?? 'Unknown area'}, {place.city ?? 'Unknown region'}
+          {place.area ?? 'Unknown area'},{' '}
+          {place.destination ?? place.city ?? 'Unknown destination'}
         </p>
         <h2 className="text-2xl font-bold leading-tight">{place.name}</h2>
         <p className="mt-2 text-sm font-medium text-muted-foreground">
@@ -684,7 +685,11 @@ function ManualSearchView({
               <span className="min-w-0 flex-1">
                 <span className="block font-bold">{result.name}</span>
                 <span className="mt-1 block text-sm text-primary">
-                  {[result.area, result.city, result.country]
+                  {[
+                    result.area,
+                    result.destination ?? result.city,
+                    result.country,
+                  ]
                     .filter(Boolean)
                     .join(', ')}
                 </span>
@@ -810,7 +815,9 @@ function CandidatesView({
                   )}
                   <p className="mt-2 flex items-center gap-1 text-sm font-semibold text-primary">
                     <MapPin className="size-3.5" />
-                    {[place.area, place.city].filter(Boolean).join(', ') ||
+                    {[place.area, place.destination ?? place.city]
+                      .filter(Boolean)
+                      .join(', ') ||
                       'Unknown location'}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -893,7 +900,8 @@ function PlaceCard({
         <div className="min-w-0 flex-1">
           <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-primary">
             <MapPin className="size-4" />
-            {place.area ?? 'Unspecified'}, {place.city}
+            {place.area ?? 'Unspecified'},{' '}
+            {place.destination ?? place.city ?? 'Unknown destination'}
           </p>
           <h3 className="text-[1.05rem] font-bold leading-snug">
             {place.name}
@@ -955,12 +963,12 @@ function PlaceCard({
   );
 }
 function RegionView({
-  region,
+  destination,
   country,
   onBack,
   onChanged,
 }: {
-  region: string;
+  destination: string;
   country: string;
   onBack: () => void;
   onChanged: () => void;
@@ -972,7 +980,7 @@ function RegionView({
     setState('loading');
     try {
       const result = await requestJson<{ places: SavedPlaceView[] }>(
-        `/api/regions/${encodeURIComponent(region)}?country=${encodeURIComponent(country)}`,
+        `/api/regions/${encodeURIComponent(destination)}?country=${encodeURIComponent(country)}`,
       );
       setPlaces(result.places);
       setState('ready');
@@ -984,7 +992,7 @@ function RegionView({
       );
       setState('error');
     }
-  }, [region, country]);
+  }, [destination, country]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -1004,7 +1012,7 @@ function RegionView({
   const grouped = Object.groupBy(places, (place) => place.area ?? 'Other');
   return (
     <Shell>
-      <TopBar title={region} onBack={onBack} />
+      <TopBar title={destination} onBack={onBack} />
       <div className="mb-7 rounded-[1.5rem] bg-primary p-5 text-primary-foreground">
         <p className="text-sm opacity-75">{country}</p>
         <p className="mt-1 text-3xl font-semibold">
@@ -1024,7 +1032,7 @@ function RegionView({
             <EmptyMedia variant="icon">
               <MapPin />
             </EmptyMedia>
-            <EmptyTitle>No places left in {region}</EmptyTitle>
+            <EmptyTitle>No places left in {destination}</EmptyTitle>
             <EmptyDescription>
               Return home to browse another region or add a place.
             </EmptyDescription>
@@ -1061,7 +1069,7 @@ export function TravelApp() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [loadError, setLoadError] = useState('');
   const [selectedRegion, setSelectedRegion] = useState({
-    region: 'Bali',
+    destination: 'Bali',
     country: 'Indonesia',
   });
   const [reelUrl, setReelUrl] = useState(featuredPlace.instagramReelUrl);
@@ -1157,7 +1165,8 @@ export function TravelApp() {
       },
     );
     setSelectedRegion({
-      region: places[0].city ?? 'Unknown',
+      destination:
+        places[0].destination ?? places[0].city ?? 'Unknown',
       country: places[0].country ?? 'Unknown',
     });
     await loadRegions();
@@ -1294,7 +1303,7 @@ export function TravelApp() {
     );
   return (
     <RegionView
-      region={selectedRegion.region}
+      destination={selectedRegion.destination}
       country={selectedRegion.country}
       onBack={() => {
         void loadRegions();

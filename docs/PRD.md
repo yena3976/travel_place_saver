@@ -559,7 +559,11 @@ category            text
 country             text
 country_code        text
 city                text
+destination         text
 area                text
+google_locality             text
+google_admin_area_level_1   text
+google_admin_area_level_2   text
 address             text
 
 latitude            numeric
@@ -611,9 +615,13 @@ MVP에서는 동일 장소 중복 저장을 막기 위해 `saved_places.place_id
 
 별도 `regions` 테이블은 만들지 않는다.
 
-Home에서는 저장 장소를 city + country 기준으로 그룹핑해 지역 목록을 생성한다.
+Home에서는 저장 장소를 destination + country 기준으로 그룹핑해 지역 목록을 생성한다.
 
 Region Detail에서는 선택한 region의 장소를 조회한 뒤 `area`로 그룹핑한다.
+
+`destination`은 사용자가 여행지로 인식하는 대표 지역이며 Google의 원본
+`locality`와 행정구역 값은 별도 컬럼에 유지한다. 대표 예외는 Tokyo special
+wards, Seoul districts, Bali visitor areas이며 공통 정규화 로직에서 처리한다.
 
 ---
 
