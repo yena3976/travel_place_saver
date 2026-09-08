@@ -72,7 +72,10 @@ void test('classifies single, multiple, and not found results', () => {
 });
 
 void test('records estimated model cost from actual token usage', () => {
-  assert.equal(estimateCost('gpt-4.1-mini', 1_000_000, 1_000_000), 2);
+  assert.equal(
+    estimateCost('gemini-3.5-flash-lite', 1_000_000, 1_000_000),
+    2.8,
+  );
   assert.equal(estimateCost('unpriced-model', 100, 100), 0);
 });
 

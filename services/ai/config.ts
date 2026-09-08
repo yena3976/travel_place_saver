@@ -1,16 +1,16 @@
 export const reelAnalysisConfig = {
-  defaultModel: 'gpt-4.1-mini',
+  defaultModel: 'gemini-3.5-flash-lite',
   maxPlacesPerReel: 5,
   timeoutMs: 20_000,
   maxAttempts: 2,
   pricesPerMillionTokens: {
-    'gpt-4.1-mini': { input: 0.4, output: 1.6 },
+    'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
   } as Record<string, { input: number; output: number }>,
 };
 
 export function reelAnalysisModel() {
   return (
-    process.env.OPENAI_REEL_ANALYSIS_MODEL || reelAnalysisConfig.defaultModel
+    process.env.GEMINI_REEL_ANALYSIS_MODEL || reelAnalysisConfig.defaultModel
   );
 }
 

@@ -27,7 +27,7 @@
 # Phase 4 — Reel analysis and AI extraction
 
 - Public Reel metadata is fetched server-side from Instagram HTML. Caption/description, title, and thumbnail metadata are used; login, private, deleted, and blocked Reels fall back to Manual Search.
-- OpenAI Responses API Structured Outputs performs at most one extraction request per uncached Reel. The default model is `gpt-4.1-mini`, configurable with `OPENAI_REEL_ANALYSIS_MODEL`.
+- Gemini GenerateContent Structured Outputs performs at most one extraction request per uncached Reel. The default model is `gemini-3.5-flash-lite`, configurable with `GEMINI_REEL_ANALYSIS_MODEL`. This intentionally supersedes the PRD's original OpenAI provider choice following the user's Phase 4 follow-up. Gemini 2.5 Flash-Lite is not available to new API users.
 - Completed and not-found results are cached in `reel_analyses` by normalized Reel URL. Failed rows may be retried and are never returned as cached successes.
 - A Reel yields at most five AI place candidates. Each is passed through the existing `verifyPlace()` Google Places workflow.
 - AI requests use a 20 second timeout and at most two attempts, with retry limited to transient failures. Pricing lives in `services/ai/config.ts`.

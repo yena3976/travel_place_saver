@@ -57,8 +57,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<publishable-or-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<secret-or-service-role-key>
 GOOGLE_PLACES_API_KEY=<server-restricted-google-key>
-OPENAI_API_KEY=<server-only-openai-key>
-OPENAI_REEL_ANALYSIS_MODEL=gpt-4.1-mini
+GEMINI_API_KEY=<server-only-gemini-key>
+GEMINI_REEL_ANALYSIS_MODEL=gemini-3.5-flash-lite
 ```
 
 `SUPABASE_SERVICE_ROLE_KEY`는 RLS를 우회할 수 있는 비밀 값입니다. 브라우저 코드나 `NEXT_PUBLIC_*` 변수에 넣지 마세요. 이 프로젝트에서는 `server-only` 모듈과 Next.js Route Handler 안에서만 사용합니다. `.env.local`은 `.gitignore`에 포함되어 Git에 올라가지 않습니다.
@@ -119,10 +119,10 @@ npm run build
 
 ## Instagram Reel analysis setup
 
-1. `OPENAI_API_KEY`를 `.env.local`에 저장합니다. `NEXT_PUBLIC_` 접두사를 사용하지 마세요.
-2. 기본 모델은 `gpt-4.1-mini`이며 `OPENAI_REEL_ANALYSIS_MODEL`로 변경할 수 있습니다.
+1. `GEMINI_API_KEY`를 `.env.local`에 저장합니다. `NEXT_PUBLIC_` 접두사를 사용하지 마세요.
+2. 기본 모델은 `gemini-3.5-flash-lite`이며 `GEMINI_REEL_ANALYSIS_MODEL`로 변경할 수 있습니다.
 3. Supabase SQL Editor에서 `supabase/migrations/202609080001_phase4_reel_analyses.sql`을 실행합니다.
-4. 공개 Reel URL을 Add Place에 입력하면 서버가 공개 HTML의 title, caption/description, thumbnail metadata를 확보하고 OpenAI Structured Outputs로 장소를 한 번에 추출합니다.
+4. 공개 Reel URL을 Add Place에 입력하면 서버가 공개 HTML의 title, caption/description, thumbnail metadata를 확보하고 Gemini Structured Outputs로 장소를 한 번에 추출합니다.
 
 완료 또는 장소 미검출 결과는 정규화된 Reel URL을 기준으로 DB에서 재사용합니다. 비공개·삭제·접근 제한 Reel과 분석 실패는 Manual Search로 이어지며 성공 결과로 캐시하지 않습니다. Reel 하나에서 최대 5개 장소만 Google Places로 자동 검증합니다. AI 호출은 20초 timeout, 최대 2회 시도이며 일시적 오류만 재시도합니다. 토큰과 예상 비용은 `reel_analyses`에 저장됩니다.
 

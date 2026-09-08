@@ -45,6 +45,7 @@ export async function analyzeReel(value: string): Promise<ReelAnalysisResult> {
       usage: ai.usage,
     });
     console.info('ai_usage', {
+      provider: 'gemini',
       model: ai.usage.model,
       inputTokens: ai.usage.inputTokens,
       outputTokens: ai.usage.outputTokens,
@@ -73,6 +74,7 @@ export async function analyzeReel(value: string): Promise<ReelAnalysisResult> {
         : undefined,
     );
     console.error('ai_usage', {
+      provider: 'gemini',
       success: false,
       errorCode: code,
       createdAt: new Date().toISOString(),
