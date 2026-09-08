@@ -40,7 +40,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { analysisPlaces, featuredPlace } from '@/lib/mock-data';
+import { featuredPlace } from '@/lib/mock-data';
+import type { ReelAnalysisResult } from '@/services/ai/types';
 import type {
   PlaceInput,
   PlaceSearchResult,
@@ -56,18 +57,12 @@ type Screen =
   | 'result'
   | 'duplicate'
   | 'not-found'
+  | 'analysis-error'
   | 'candidates'
   | 'manual-search'
   | 'region';
-type Scenario = 'success' | 'duplicate' | 'not-found' | 'candidates';
 type LoadState = 'loading' | 'ready' | 'error';
 type ResultPlace = PlaceInput & { id?: string; image?: string };
-const sampleUrls: Record<Scenario, string> = {
-  success: featuredPlace.instagramReelUrl,
-  duplicate: 'https://www.instagram.com/reel/duplicate/',
-  'not-found': 'https://www.instagram.com/reel/not-found/',
-  candidates: 'https://www.instagram.com/reel/candidates/',
-};
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -275,7 +270,7 @@ function AddView({
   onManualSearch,
 }: {
   onBack: () => void;
-  onAnalyze: (scenario: Scenario, url: string) => void;
+  onAnalyze: (url: string) => void;
   onManualSearch: () => void;
 }) {
   const [url, setUrl] = useState('');
@@ -289,17 +284,14 @@ function AddView({
       setError('Paste a valid Instagram Reel URL.');
       return;
     }
-    const scenario = (Object.entries(sampleUrls).find(
-      ([, value]) => value === url,
-    )?.[0] ?? 'success') as Scenario;
-    onAnalyze(scenario, url);
+    onAnalyze(url);
   };
   const paste = async () => {
     try {
       setUrl(await navigator.clipboard.readText());
       setError('');
     } catch {
-      setUrl(sampleUrls.success);
+      setError('Clipboard access is unavailable. Paste the URL manually.');
     }
   };
   return (
@@ -356,23 +348,6 @@ function AddView({
       >
         <Search /> Search for a place manually
       </Button>
-      <div className="mt-4 rounded-2xl bg-secondary/65 p-4">
-        <p className="text-sm font-semibold">Try a mock state</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(Object.keys(sampleUrls) as Scenario[]).map((item) => (
-            <button
-              key={item}
-              onClick={() => {
-                setUrl(sampleUrls[item]);
-                setError('');
-              }}
-              className="min-h-10 rounded-full border bg-card px-3 text-sm font-medium capitalize"
-            >
-              {item.replace('-', ' ')}
-            </button>
-          ))}
-        </div>
-      </div>
       <div className="fixed inset-x-0 bottom-0 border-t bg-background/90 p-4 backdrop-blur">
         <Button
           onClick={analyze}
@@ -395,7 +370,7 @@ function AnalyzingView() {
         </div>
         <h1 className="text-2xl font-semibold">Finding this place…</h1>
         <p className="mt-3 max-w-xs text-base text-muted-foreground">
-          Reading the Reel and matching details with our mock place library.
+          Reading the Reel, extracting places, and checking Google Places.
         </p>
       </div>
     </Shell>
@@ -718,16 +693,18 @@ function ManualSearchView({
 }
 
 function CandidatesView({
+  places,
   onBack,
   onManualSearch,
   onSave,
 }: {
+  places: ResultPlace[];
   onBack: () => void;
   onManualSearch: () => void;
   onSave: (ids: string[]) => Promise<void>;
 }) {
   const [selected, setSelected] = useState(
-    analysisPlaces.map((place) => place.id),
+    places.map((place) => place.id ?? place.googlePlaceId ?? place.name),
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -761,18 +738,21 @@ function CandidatesView({
         </span>
       </div>
       <div className="space-y-3">
-        {analysisPlaces.map((place) => {
-          const checked = selected.includes(place.id);
+        {places.map((place) => {
+          const id = place.id ?? place.googlePlaceId ?? place.name;
+          const checked = selected.includes(id);
           return (
             <div
-              key={place.id}
+              key={id}
               className={`flex min-h-24 items-center gap-3 rounded-2xl border bg-card p-4 ${checked ? 'border-primary/55 bg-primary/[0.035]' : ''}`}
             >
-              <img
-                src={place.image}
-                alt=""
-                className="size-14 shrink-0 rounded-xl object-cover"
-              />
+              {place.image && (
+                <img
+                  src={place.image}
+                  alt=""
+                  className="size-14 shrink-0 rounded-xl object-cover"
+                />
+              )}
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1 text-sm font-semibold text-primary">
                   <MapPin className="size-3.5" />
@@ -786,7 +766,7 @@ function CandidatesView({
               </div>
               <Checkbox
                 checked={checked}
-                onCheckedChange={(value) => toggle(place.id, value === true)}
+                onCheckedChange={(value) => toggle(id, value === true)}
                 aria-label={`Select ${place.name}`}
                 className="size-6 rounded-lg"
               />
@@ -1010,6 +990,8 @@ export function TravelApp() {
   });
   const [reelUrl, setReelUrl] = useState(featuredPlace.instagramReelUrl);
   const [resultPlace, setResultPlace] = useState<ResultPlace>(featuredPlace);
+  const [analysisResults, setAnalysisResults] = useState<ResultPlace[]>([]);
+  const [analysisMessage, setAnalysisMessage] = useState('');
   const loadRegions = useCallback(async () => {
     setLoadState('loading');
     try {
@@ -1030,21 +1012,43 @@ export function TravelApp() {
   useEffect(() => {
     void loadRegions();
   }, [loadRegions]);
-  const analyze = (scenario: Scenario, url: string) => {
+  const analyze = async (url: string) => {
     setReelUrl(url);
-    setResultPlace(featuredPlace);
+    setAnalysisMessage('');
     setScreen('analyzing');
-    setTimeout(
-      () =>
-        setScreen(
-          scenario === 'not-found'
-            ? 'not-found'
-            : scenario === 'candidates'
-              ? 'candidates'
-              : 'result',
-        ),
-      950,
-    );
+    try {
+      const data = await requestJson<ReelAnalysisResult>('/api/reels/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const places: ResultPlace[] = data.places.map((place) => ({
+        ...place,
+        instagramReelUrl: data.reel.url,
+        instagramThumbnail: data.reel.thumbnailUrl,
+        image: data.reel.thumbnailUrl ?? undefined,
+      }));
+      setReelUrl(data.reel.url);
+      setAnalysisResults(places);
+      if (data.status === 'single' && places[0]) {
+        setResultPlace(places[0]);
+        setScreen('result');
+      } else if (data.status === 'multiple' || data.status === 'candidates') {
+        setScreen(places.length ? 'candidates' : 'not-found');
+      } else if (data.status === 'not_found') {
+        setScreen('not-found');
+      } else {
+        setAnalysisMessage(data.message ?? 'We could not analyze this Reel.');
+        setScreen('analysis-error');
+      }
+    } catch (reason) {
+      setAnalysisMessage(
+        reason instanceof Error
+          ? reason.message
+          : 'We could not analyze this Reel.',
+      );
+      setScreen('analysis-error');
+    }
   };
   const save = async (places: ResultPlace[]) => {
     const payload: PlaceInput[] = places.map(
@@ -1078,28 +1082,24 @@ export function TravelApp() {
           name: 'start_reel_analysis',
           title: 'Analyze Reel',
           description:
-            'Start the mock Reel analysis flow for a valid Instagram Reel URL.',
+            'Analyze an Instagram Reel and find verified travel places.',
           inputSchema: {
             type: 'object',
             properties: {
               url: { type: 'string' },
-              scenario: {
-                type: 'string',
-                enum: ['success', 'duplicate', 'not-found', 'candidates'],
-              },
             },
             required: ['url'],
             additionalProperties: false,
           },
           annotations: { readOnlyHint: false, untrustedContentHint: true },
           execute(input: unknown) {
-            const data = input as { url?: string; scenario?: Scenario };
+            const data = input as { url?: string };
             if (
               !data.url ||
               !/^https:\/\/(www\.)?instagram\.com\/reel(s)?\//.test(data.url)
             )
               throw new Error('A valid Instagram Reel URL is required.');
-            analyze(data.scenario ?? 'success', data.url);
+            void analyze(data.url);
             return { status: 'analyzing', url: data.url };
           },
         },
@@ -1154,13 +1154,35 @@ export function TravelApp() {
         onManualSearch={() => setScreen('manual-search')}
       />
     );
+  if (screen === 'analysis-error')
+    return (
+      <Shell>
+        <TopBar title="Analysis failed" onBack={() => setScreen('add')} />
+        <Failure
+          message={analysisMessage}
+          retry={() => void analyze(reelUrl)}
+        />
+        <Button
+          variant="ghost"
+          onClick={() => setScreen('manual-search')}
+          className="mt-4 h-12 w-full rounded-xl"
+        >
+          <Search /> Search manually
+        </Button>
+      </Shell>
+    );
   if (screen === 'candidates')
     return (
       <CandidatesView
+        places={analysisResults}
         onBack={() => setScreen('add')}
         onManualSearch={() => setScreen('manual-search')}
         onSave={(ids) =>
-          save(analysisPlaces.filter((place) => ids.includes(place.id)))
+          save(
+            analysisResults.filter((place) =>
+              ids.includes(place.id ?? place.googlePlaceId ?? place.name),
+            ),
+          )
         }
       />
     );
