@@ -93,7 +93,7 @@ Windows PowerShell에서는 복사 명령으로 `Copy-Item .env.example .env.loc
 GitHub 저장소의 `main` 브랜치를 Netlify에 연결하면 표준 Next.js 통합이 자동으로 적용됩니다.
 
 - Build command: `npm run build`
-- Publish directory: 직접 지정하지 않음(Netlify의 Next.js 통합이 관리)
+- Publish directory: `.next` (`netlify.toml`에 명시)
 - Node.js: `.nvmrc`에 따라 최신 Node.js 22.x
 - Base directory: 저장소 루트
 - Functions region: Supabase Seoul 리전과 가까운 Tokyo 권장
