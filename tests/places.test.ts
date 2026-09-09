@@ -8,6 +8,10 @@ import {
 } from '../services/places/normalizePlace.ts';
 import { normalizeSearchQuery } from '../services/places/normalizeQuery.ts';
 import { normalizeDestination } from '../services/places/normalizeDestination.ts';
+import {
+  isStreetLevelRegion,
+  normalizeRegion,
+} from '../services/places/normalizeRegion.ts';
 import { groupDestinations } from '../services/places/groupDestinations.ts';
 import {
   buildPlacesSearchCacheKey,
@@ -127,14 +131,18 @@ void test('maps Google types to MVP categories', () => {
 });
 void test('parses flexible address components', () =>
   assert.deepEqual(parseAddressComponents(components), {
-    country: 'Indonesia',
+    country: '인도네시아',
     countryCode: 'ID',
     city: 'Bali',
-    destination: 'Bali',
-    area: 'Ubud',
+    destination: '발리',
+    area: '우붓',
     googleLocality: null,
+    googleSublocality: 'Ubud',
+    googleNeighborhood: null,
     googleAdminAreaLevel1: 'Bali',
     googleAdminAreaLevel2: null,
+    googleRoute: null,
+    googleFormattedAddress: null,
   }));
 
 void test('normalizes Tokyo wards into one travel destination', () => {
@@ -145,7 +153,7 @@ void test('normalizes Tokyo wards into one travel destination', () => {
       locality: 'Minato City',
       adminArea1: 'Tokyo',
     }),
-    { destination: 'Tokyo', area: 'Minato' },
+    { country: '일본', destination: '도쿄', area: '미나토' },
   );
   assert.deepEqual(
     normalizeDestination({
@@ -154,7 +162,7 @@ void test('normalizes Tokyo wards into one travel destination', () => {
       locality: 'Shibuya City',
       adminArea1: 'Tokyo',
     }),
-    { destination: 'Tokyo', area: 'Shibuya' },
+    { country: '일본', destination: '도쿄', area: '시부야' },
   );
 });
 
@@ -167,7 +175,11 @@ void test('normalizes Bali visitor areas under Bali', () => {
         locality: area,
         adminArea1: 'Bali',
       }),
-      { destination: 'Bali', area },
+      {
+        country: '인도네시아',
+        destination: '발리',
+        area: area === 'Ubud' ? '우붓' : '스미냑',
+      },
     );
   }
 });
@@ -182,7 +194,7 @@ void test('normalizes Seoul districts and prefers a finer neighborhood', () => {
       sublocality1: 'Jongno-gu',
       neighborhood: 'Seochon',
     }),
-    { destination: 'Seoul', area: 'Seochon' },
+    { country: '대한민국', destination: '서울', area: '서촌' },
   );
   assert.deepEqual(
     normalizeDestination({
@@ -191,20 +203,40 @@ void test('normalizes Seoul districts and prefers a finer neighborhood', () => {
       locality: 'Seoul',
       fallbackArea: 'Gangnam',
     }),
-    { destination: 'Seoul', area: 'Gangnam' },
+    { country: '대한민국', destination: '서울', area: '강남' },
   );
+});
+
+void test('uses Seoul districts instead of road-level grouping values', () => {
+  for (const route of ['Cheonggyecheon-ro', 'Bukchon-ro 4-gil']) {
+    assert.deepEqual(
+      normalizeRegion({
+        country: 'South Korea',
+        countryCode: 'KR',
+        locality: 'Seoul',
+        adminArea2: 'Jongno-gu',
+        route,
+        fallbackArea: route,
+        formattedAddress: `${route}, Jongno District, Seoul, South Korea`,
+      }),
+      { country: '대한민국', destination: '서울', area: '종로' },
+    );
+  }
+  assert.equal(isStreetLevelRegion('Cheonggyecheon-ro'), true);
+  assert.equal(isStreetLevelRegion('북촌로 4길'), true);
+  assert.equal(isStreetLevelRegion('종로1.2.3.4가동'), true);
 });
 
 void test('groups Tokyo and a normalized Minato row into one Home card', () => {
   assert.deepEqual(
     groupDestinations([
-      { destination: 'Tokyo', country: 'Japan', thumbnailUrl: 'a.jpg' },
-      { destination: 'Tokyo', country: 'Japan', thumbnailUrl: 'b.jpg' },
+      { destination: '도쿄', country: '일본', thumbnailUrl: 'a.jpg' },
+      { destination: '도쿄', country: '일본', thumbnailUrl: 'b.jpg' },
     ]),
     [
       {
-        destination: 'Tokyo',
-        country: 'Japan',
+        destination: '도쿄',
+        country: '일본',
         count: 2,
         thumbnailUrl: 'a.jpg',
       },

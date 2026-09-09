@@ -2,7 +2,7 @@ import 'server-only';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { normalizeInstagramUrl } from '@/lib/instagram/normalizeInstagramUrl';
 import { groupDestinations } from './groupDestinations';
-import { normalizeDestination } from './normalizeDestination';
+import { normalizeRegion } from './normalizeRegion';
 import type {
   PlaceCategory,
   PlaceInput,
@@ -122,8 +122,12 @@ export async function findPlaceByGoogleId(
     destination: data.destination,
     area: data.area,
     googleLocality: data.google_locality,
+    googleSublocality: data.google_sublocality,
+    googleNeighborhood: data.google_neighborhood,
     googleAdminAreaLevel1: data.google_admin_area_level_1,
     googleAdminAreaLevel2: data.google_admin_area_level_2,
+    googleRoute: data.google_route,
+    googleFormattedAddress: data.google_formatted_address,
     address: data.address,
     latitude: data.latitude,
     longitude: data.longitude,
@@ -136,19 +140,21 @@ export async function findPlaceByGoogleId(
 export async function savePlace(input: PlaceInput) {
   const db = createServerSupabaseClient();
   const normalizedReelUrl = normalizeInstagramUrl(input.instagramReelUrl);
-  const normalizedLocation = normalizeDestination({
+  const normalizedLocation = normalizeRegion({
     country: input.country,
     countryCode: input.countryCode,
     locality: input.googleLocality ?? input.city,
     adminArea1: input.googleAdminAreaLevel1,
     adminArea2: input.googleAdminAreaLevel2,
+    neighborhood: input.googleNeighborhood,
+    sublocality1: input.googleSublocality,
+    route: input.googleRoute,
+    formattedAddress: input.googleFormattedAddress ?? input.address,
     fallbackArea: input.area,
   });
   const destination =
-    input.destination ?? normalizedLocation.destination ?? input.city ?? null;
-  const area = input.destination
-    ? input.area
-    : (normalizedLocation.area ?? input.area ?? null);
+    normalizedLocation.destination ?? input.destination ?? input.city ?? null;
+  const area = normalizedLocation.area;
   let placeId: string | null = null;
   if (input.googlePlaceId) {
     const { data, error } = await db
@@ -165,14 +171,19 @@ export async function savePlace(input: PlaceInput) {
       .insert({
         name: input.name,
         category: input.category ?? null,
-        country: input.country ?? null,
+        country: normalizedLocation.country ?? input.country ?? null,
         country_code: input.countryCode ?? null,
         city: input.city ?? null,
         destination,
         area,
         google_locality: input.googleLocality ?? null,
+        google_sublocality: input.googleSublocality ?? null,
+        google_neighborhood: input.googleNeighborhood ?? null,
         google_admin_area_level_1: input.googleAdminAreaLevel1 ?? null,
         google_admin_area_level_2: input.googleAdminAreaLevel2 ?? null,
+        google_route: input.googleRoute ?? null,
+        google_formatted_address:
+          input.googleFormattedAddress ?? input.address ?? null,
         address: input.address ?? null,
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,

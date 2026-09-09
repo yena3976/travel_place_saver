@@ -13,8 +13,12 @@ export type PlaceInput = {
   destination?: string | null;
   area?: string | null;
   googleLocality?: string | null;
+  googleSublocality?: string | null;
+  googleNeighborhood?: string | null;
   googleAdminAreaLevel1?: string | null;
   googleAdminAreaLevel2?: string | null;
+  googleRoute?: string | null;
+  googleFormattedAddress?: string | null;
   address?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -64,12 +68,17 @@ export type PlaceSearchResult = {
   address: string | null;
   category: PlaceCategory;
   country: string | null;
+  countryCode: string | null;
   city: string | null;
   destination: string | null;
   area: string | null;
   googleLocality: string | null;
+  googleSublocality: string | null;
+  googleNeighborhood: string | null;
   googleAdminAreaLevel1: string | null;
   googleAdminAreaLevel2: string | null;
+  googleRoute: string | null;
+  googleFormattedAddress: string | null;
 };
 export type PlaceSearchLanguage = 'ko' | 'ja' | 'zh' | 'en';
 export type PlaceLocationBias = {

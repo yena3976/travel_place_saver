@@ -1,4 +1,5 @@
 import { normalizeSearchQuery } from './normalizeQuery.ts';
+import { countryRegionCode } from './searchContext.ts';
 import type { MatchStatus, VerificationInput } from './types.ts';
 
 export const VERIFIED_SCORE_THRESHOLD = 0.85;
@@ -53,12 +54,21 @@ export function hasConsistentLocation(
   input: VerificationInput,
   candidate: {
     country?: string | null;
+    countryCode?: string | null;
     city?: string | null;
     area?: string | null;
   },
 ) {
   if (!input.country || !input.city) return false;
-  const countryMatches = locationPartMatches(input.country, candidate.country);
+  const inputRegion = countryRegionCode(input.country, input.countryCode);
+  const candidateRegion = countryRegionCode(
+    candidate.country,
+    candidate.countryCode,
+  );
+  const countryMatches =
+    Boolean(
+      inputRegion && candidateRegion && inputRegion === candidateRegion,
+    ) || locationPartMatches(input.country, candidate.country);
   const cityMatches =
     locationPartMatches(input.city, candidate.city) ||
     locationPartMatches(input.city, candidate.area) ||
@@ -82,12 +92,22 @@ export function scoreCandidate(
   candidate: {
     name: string;
     country?: string | null;
+    countryCode?: string | null;
     city?: string | null;
     area?: string | null;
   },
 ) {
   const name = nameSimilarity(input.name, candidate.name);
-  const country = input.country ? overlap(input.country, candidate.country) : 1;
+  const inputRegion = countryRegionCode(input.country, input.countryCode);
+  const candidateRegion = countryRegionCode(
+    candidate.country,
+    candidate.countryCode,
+  );
+  const country = input.country
+    ? inputRegion && candidateRegion && inputRegion === candidateRegion
+      ? 1
+      : overlap(input.country, candidate.country)
+    : 1;
   const locationParts = [input.city, input.area].filter(Boolean);
   const location = locationParts.length
     ? Math.max(

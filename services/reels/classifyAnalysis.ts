@@ -1,10 +1,39 @@
 import type { ExtractedPlace, ReelAnalysisResult } from '../ai/types.ts';
+import { normalizeRegion } from '../places/normalizeRegion.ts';
 import type { VerificationResult } from '../places/types.ts';
 
 export const REEL_ANALYSIS_VERSION = 11;
 
 export function combineConfidence(ai: number, google: number) {
   return Math.round((ai * 0.4 + google * 0.6) * 100) / 100;
+}
+
+export function normalizeAnalysisRegions(
+  result: ReelAnalysisResult,
+): ReelAnalysisResult {
+  return {
+    ...result,
+    places: result.places.map((place) => {
+      const region = normalizeRegion({
+        country: place.country,
+        countryCode: place.countryCode,
+        locality: place.googleLocality ?? place.city,
+        adminArea1: place.googleAdminAreaLevel1,
+        adminArea2: place.googleAdminAreaLevel2,
+        neighborhood: place.googleNeighborhood,
+        sublocality1: place.googleSublocality,
+        route: place.googleRoute,
+        formattedAddress: place.googleFormattedAddress ?? place.address,
+        fallbackArea: place.area,
+      });
+      return {
+        ...place,
+        country: region.country ?? place.country,
+        destination: region.destination ?? place.destination ?? place.city,
+        area: region.area,
+      };
+    }),
+  };
 }
 
 export function classifyVerifiedPlaces(
@@ -43,7 +72,14 @@ export function classifyVerifiedPlaces(
       source: source.source,
     };
   });
-  if (!places.length)
+  const normalizedPlaces = normalizeAnalysisRegions({
+    analysisVersion: REEL_ANALYSIS_VERSION,
+    status: places.length > 1 ? 'multiple' : 'candidates',
+    reel,
+    places,
+    cached: false,
+  }).places;
+  if (!normalizedPlaces.length)
     return {
       analysisVersion: REEL_ANALYSIS_VERSION,
       status: 'not_found',
@@ -51,23 +87,24 @@ export function classifyVerifiedPlaces(
       places: [],
       cached: false,
     };
-  if (places.length > 1)
+  if (normalizedPlaces.length > 1)
     return {
       analysisVersion: REEL_ANALYSIS_VERSION,
       status: 'multiple',
       reel,
-      places,
+      places: normalizedPlaces,
       cached: false,
     };
   const status =
-    places[0].matchStatus === 'verified' && places[0].confidence >= 0.85
+    normalizedPlaces[0].matchStatus === 'verified' &&
+    normalizedPlaces[0].confidence >= 0.85
       ? 'single'
       : 'candidates';
   return {
     analysisVersion: REEL_ANALYSIS_VERSION,
     status,
     reel,
-    places,
+    places: normalizedPlaces,
     cached: false,
   };
 }

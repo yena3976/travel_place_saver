@@ -1071,7 +1071,10 @@ function RegionView({
       );
     }
   };
-  const grouped = Object.groupBy(places, (place) => place.area ?? '기타 지역');
+  const grouped = Object.groupBy(
+    places,
+    (place) => place.area ?? place.destination ?? destination,
+  );
   return (
     <Shell>
       <TopBar

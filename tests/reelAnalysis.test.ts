@@ -4,7 +4,10 @@ import { normalizeReelUrl } from '../lib/reels/normalizeReelUrl.ts';
 import { estimateCost } from '../services/ai/config.ts';
 import { mergePlaceExtraction } from '../services/ai/mergeExtraction.ts';
 import { parsePlaceExtraction } from '../services/ai/schemas.ts';
-import { classifyVerifiedPlaces } from '../services/reels/classifyAnalysis.ts';
+import {
+  classifyVerifiedPlaces,
+  normalizeAnalysisRegions,
+} from '../services/reels/classifyAnalysis.ts';
 import { parseReelHtml } from '../services/reels/reelMetadata.ts';
 import {
   MAX_VIDEO_FRAMES,
@@ -39,8 +42,12 @@ const verified: VerificationResult = {
     name: 'WYAH UBUD Art & Creative Space',
     category: 'Cafe',
     country: 'Indonesia',
+    countryCode: 'ID',
     city: 'Kabupaten Gianyar',
+    destination: 'Bali',
     area: 'Kecamatan Ubud',
+    googleSublocality: 'Ubud',
+    googleAdminAreaLevel1: 'Bali',
     googlePlaceId: 'google-wyah',
   },
 };
@@ -66,9 +73,15 @@ void test('parses the structured AI response', () => {
 });
 
 void test('classifies single, multiple, and not found results', () => {
-  assert.equal(
-    classifyVerifiedPlaces(reel, [extracted], [verified]).status,
-    'single',
+  const single = classifyVerifiedPlaces(reel, [extracted], [verified]);
+  assert.equal(single.status, 'single');
+  assert.deepEqual(
+    [
+      single.places[0].country,
+      single.places[0].destination,
+      single.places[0].area,
+    ],
+    ['인도네시아', '발리', '우붓'],
   );
   assert.equal(
     classifyVerifiedPlaces(reel, [extracted, extracted], [verified, verified])
@@ -93,6 +106,36 @@ void test('classifies single, multiple, and not found results', () => {
     'candidates',
   );
   assert.equal(classifyVerifiedPlaces(reel, [], []).status, 'not_found');
+});
+
+void test('normalizes legacy cached analysis without another AI request', () => {
+  const result = normalizeAnalysisRegions({
+    analysisVersion: 11,
+    status: 'single',
+    reel,
+    places: [
+      {
+        ...verified.place!,
+        id: 'google-wyah',
+        detectedPlaceName: extracted.name,
+        googlePlaceName: verified.place!.name,
+        matchStatus: 'verified',
+        verificationScore: 0.9,
+        confidence: 0.92,
+        evidence: extracted.evidence,
+        source: extracted.source,
+      },
+    ],
+    cached: true,
+  });
+  assert.deepEqual(
+    [
+      result.places[0].country,
+      result.places[0].destination,
+      result.places[0].area,
+    ],
+    ['인도네시아', '발리', '우붓'],
+  );
 });
 
 void test('records estimated model cost from actual token usage', () => {

@@ -1,6 +1,6 @@
 import type { GoogleAddressComponent, GooglePlace } from './googleTypes.ts';
 import type { PlaceCategory, PlaceStatus, VerifiedPlace } from './types.ts';
-import { normalizeDestination } from './normalizeDestination.ts';
+import { normalizeRegion } from './normalizeRegion.ts';
 
 const groups: Array<[PlaceCategory, Set<string>]> = [
   ['Cafe', new Set(['cafe', 'coffee_shop', 'tea_house'])],
@@ -77,6 +77,7 @@ function component(components: GoogleAddressComponent[] = [], types: string[]) {
 
 export function parseAddressComponents(
   components: GoogleAddressComponent[] = [],
+  formattedAddress?: string | null,
 ) {
   const country = component(components, ['country']);
   const locality = component(components, ['locality', 'postal_town']);
@@ -89,7 +90,8 @@ export function parseAddressComponents(
     'sublocality',
   ]);
   const adminArea3 = component(components, ['administrative_area_level_3']);
-  const normalized = normalizeDestination({
+  const route = component(components, ['route']);
+  const normalized = normalizeRegion({
     country: country?.longText,
     countryCode: country?.shortText,
     locality: locality?.longText,
@@ -99,9 +101,11 @@ export function parseAddressComponents(
     sublocality1: sublocality1?.longText,
     sublocality2: sublocality2?.longText,
     adminArea3: adminArea3?.longText,
+    route: route?.longText,
+    formattedAddress,
   });
   return {
-    country: country?.longText ?? null,
+    country: normalized.country,
     countryCode: country?.shortText?.toUpperCase() ?? null,
     city:
       locality?.longText ??
@@ -111,8 +115,12 @@ export function parseAddressComponents(
     destination: normalized.destination,
     area: normalized.area,
     googleLocality: locality?.longText ?? null,
+    googleSublocality: sublocality2?.longText ?? sublocality1?.longText ?? null,
+    googleNeighborhood: neighborhood?.longText ?? null,
     googleAdminAreaLevel1: adminArea1?.longText ?? null,
     googleAdminAreaLevel2: adminArea2?.longText ?? null,
+    googleRoute: route?.longText ?? null,
+    googleFormattedAddress: formattedAddress ?? null,
   };
 }
 
@@ -126,7 +134,10 @@ export function mapBusinessStatus(status?: string): PlaceStatus {
 export function normalizeGooglePlace(place: GooglePlace): VerifiedPlace {
   if (!place.id || !place.displayName?.text)
     throw new Error('Google Places returned an incomplete place.');
-  const location = parseAddressComponents(place.addressComponents);
+  const location = parseAddressComponents(
+    place.addressComponents,
+    place.formattedAddress,
+  );
   return {
     name: place.displayName.text,
     category: mapPlaceCategory([

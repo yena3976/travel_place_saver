@@ -7,6 +7,7 @@ import type { ReelAnalysisResult } from '../ai/types';
 import { verifyPlace } from '../places/verifyPlace';
 import {
   classifyVerifiedPlaces,
+  normalizeAnalysisRegions,
   REEL_ANALYSIS_VERSION,
 } from './classifyAnalysis';
 import { getReelContent, ReelAccessError } from './getReelContent';
@@ -23,7 +24,7 @@ export async function analyzeReel(value: string): Promise<ReelAnalysisResult> {
   const normalizedUrl = normalizeInstagramUrl(value);
   const existing = await findExistingAnalysis(normalizedUrl);
   if (existing?.result?.analysisVersion === REEL_ANALYSIS_VERSION)
-    return { ...existing.result, cached: true };
+    return normalizeAnalysisRegions({ ...existing.result, cached: true });
   const id = await beginAnalysis(normalizedUrl);
   let aiStarted = 0;
   try {

@@ -564,8 +564,12 @@ city                text
 destination         text
 area                text
 google_locality             text
+google_sublocality          text
+google_neighborhood         text
 google_admin_area_level_1   text
 google_admin_area_level_2   text
+google_route                text
+google_formatted_address    text
 address             text
 
 latitude            numeric
@@ -621,9 +625,15 @@ Home에서는 저장 장소를 destination + country 기준으로 그룹핑해 �
 
 Region Detail에서는 선택한 region의 장소를 조회한 뒤 `area`로 그룹핑한다.
 
-`destination`은 사용자가 여행지로 인식하는 대표 지역이며 Google의 원본
-`locality`와 행정구역 값은 별도 컬럼에 유지한다. 대표 예외는 Tokyo special
-wards, Seoul districts, Bali visitor areas이며 공통 정규화 로직에서 처리한다.
+UI 지역 계층은 `country → destination → area`로 고정하고, 세 값은 한국어
+표시명을 우선한다. `destination`은 사용자가 여행지로 인식하는 대표 지역이다.
+Google의 원본 locality, sublocality, neighborhood, 행정구역, route, formatted
+address는 별도 컬럼에 유지하며 UI 그룹핑 키로 직접 쓰지 않는다.
+
+공통 `normalizeRegion()`은 neighborhood → district/ward → locality 순으로
+안정적인 area를 선택한다. route/street/road와 도로명·번지 수준 값은 area에서
+제외한다. 대표 예외는 도쿄 특별구, 서울 자치구·주요 동네, 발리 여행 지역이며
+작은 alias map으로 관리한다. 명확한 area가 없으면 destination까지만 표시한다.
 
 ---
 

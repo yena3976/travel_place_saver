@@ -35,7 +35,10 @@ export async function searchPlaces(
   const places = await googleTextSearch(normalized, resolvedOptions);
   const results = places.flatMap((place) => {
     if (!place.id || !place.displayName?.text) return [];
-    const address = parseAddressComponents(place.addressComponents);
+    const address = parseAddressComponents(
+      place.addressComponents,
+      place.formattedAddress,
+    );
     return [
       {
         googlePlaceId: place.id,

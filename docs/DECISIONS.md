@@ -62,3 +62,10 @@
 - `city` remains for backward compatibility. Google `locality`, `administrative_area_level_1`, and `administrative_area_level_2` are also stored separately so future mapping improvements do not depend on a lossy display value.
 - A shared normalizer handles a small MVP exception map: Tokyo special wards, Seoul districts, and Bali visitor areas. Unmapped locations conservatively use locality, then admin level 1, then admin level 2 as the destination.
 - Existing rows are backfilled in place. No place or saved-place rows are deleted or recreated.
+
+## Korean region display normalization
+
+- UI geography has one hierarchy: Korean-first `country → destination → area`. Google address components remain raw, separate source data.
+- `normalizeRegion()` is the only region display mapper used by Google Place normalization, saves, cached analysis responses, and the backfill script.
+- Area selection prefers a known neighborhood, then district or ward, then a safe locality. Route, street, road, `-ro`, `-gil`, Korean `로/길`, and digit-heavy detailed values are never grouping keys.
+- The exception maps stay intentionally small and cover the product's current Tokyo wards, Seoul districts and known neighborhoods, Bali visitor areas, and current saved destinations.
