@@ -8,13 +8,20 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { url?: unknown };
+    const body = (await request.json()) as {
+      url?: unknown;
+      requestId?: unknown;
+    };
     if (typeof body.url !== 'string')
       return NextResponse.json(
         { error: '올바른 인스타그램 게시물 또는 릴스 URL이 필요해요.' },
         { status: 400 },
       );
-    return NextResponse.json(await analyzeReel(body.url));
+    const requestId =
+      typeof body.requestId === 'string' && body.requestId.length <= 100
+        ? body.requestId
+        : null;
+    return NextResponse.json({ ...(await analyzeReel(body.url)), requestId });
   } catch (error) {
     const invalid =
       error instanceof Error && error.message.includes('Invalid Instagram');

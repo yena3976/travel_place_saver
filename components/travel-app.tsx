@@ -41,6 +41,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { featuredPlace } from '@/lib/mock-data';
+import { normalizeInstagramUrl } from '@/lib/instagram/normalizeInstagramUrl';
+import {
+  analysisUrlLabel,
+  idleAnalysisRequest,
+  resolveAnalysisRequest,
+  startAnalysisRequest,
+} from '@/lib/analysis-request-state';
 import {
   defaultSelectedResultIds,
   resultPlaceId,
@@ -332,10 +339,12 @@ function AddView({
   onBack,
   onAnalyze,
   onManualSearch,
+  isAnalyzing,
 }: {
   onBack: () => void;
   onAnalyze: (url: string) => void;
   onManualSearch: () => void;
+  isAnalyzing: boolean;
 }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
@@ -415,16 +424,16 @@ function AddView({
       <div className="fixed inset-x-0 bottom-0 border-t bg-background/90 p-4 backdrop-blur">
         <Button
           onClick={analyze}
-          disabled={!url}
+          disabled={!url || isAnalyzing}
           className="mx-auto flex h-14 w-full max-w-[430px] rounded-2xl text-base"
         >
-          게시물 분석하기 <Sparkles />
+          {isAnalyzing ? '분석 중…' : '게시물 분석하기'} <Sparkles />
         </Button>
       </div>
     </Shell>
   );
 }
-function AnalyzingView() {
+function AnalyzingView({ analysisUrl }: { analysisUrl: string | null }) {
   return (
     <Shell>
       <div className="flex min-h-[72vh] flex-col items-center justify-center text-center">
@@ -436,6 +445,11 @@ function AnalyzingView() {
         <p className="mt-3 max-w-xs text-base text-muted-foreground">
           게시물을 읽고 장소를 추출한 뒤 Google Places에서 확인하고 있어요.
         </p>
+        {analysisUrl && (
+          <p className="mt-5 max-w-full truncate rounded-full bg-secondary px-4 py-2 text-sm font-medium text-primary">
+            {analysisUrlLabel(analysisUrl)}
+          </p>
+        )}
       </div>
     </Shell>
   );
@@ -1127,10 +1141,14 @@ export function TravelApp() {
     destination: 'Bali',
     country: 'Indonesia',
   });
-  const [reelUrl, setReelUrl] = useState(featuredPlace.instagramReelUrl);
-  const [resultPlace, setResultPlace] = useState<ResultPlace>(featuredPlace);
-  const [analysisResults, setAnalysisResults] = useState<ResultPlace[]>([]);
-  const [analysisMessage, setAnalysisMessage] = useState('');
+  const [analysis, setAnalysis] = useState(() =>
+    idleAnalysisRequest<ResultPlace>(),
+  );
+  const activeAnalysis = useRef<{
+    requestId: string;
+    analysisUrl: string;
+    controller: AbortController;
+  } | null>(null);
   const [manualSearchQuery, setManualSearchQuery] = useState('');
   const openManualSearch = (query = '') => {
     setManualSearchQuery(query);
@@ -1156,46 +1174,102 @@ export function TravelApp() {
   useEffect(() => {
     void loadRegions();
   }, [loadRegions]);
-  const analyze = async (url: string) => {
-    setReelUrl(url);
-    setAnalysisMessage('');
+  const analyze = useCallback(async (url: string) => {
+    const analysisUrl = normalizeInstagramUrl(url);
+    if (activeAnalysis.current?.analysisUrl === analysisUrl) return;
+    activeAnalysis.current?.controller.abort();
+    const requestId = crypto.randomUUID();
+    const controller = new AbortController();
+    activeAnalysis.current = { requestId, analysisUrl, controller };
+    setAnalysis(startAnalysisRequest(requestId, analysisUrl));
     setScreen('analyzing');
     try {
-      const data = await requestJson<ReelAnalysisResult>('/api/reels/analyze', {
+      const data = await requestJson<
+        ReelAnalysisResult & { requestId: string | null }
+      >('/api/reels/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: analysisUrl, requestId }),
+        signal: controller.signal,
       });
+      if (
+        activeAnalysis.current?.requestId !== requestId ||
+        data.requestId !== requestId ||
+        data.reel.url !== analysisUrl
+      )
+        return;
       const places: ResultPlace[] = data.places.map((place) => ({
         ...place,
         instagramReelUrl: data.reel.url,
         instagramThumbnail: data.reel.thumbnailUrl,
         image: data.reel.thumbnailUrl ?? undefined,
       }));
-      setReelUrl(data.reel.url);
-      setAnalysisResults(places);
       if (data.status === 'single' && places[0]) {
-        setResultPlace(places[0]);
+        setAnalysis((current) =>
+          resolveAnalysisRequest(current, requestId, {
+            phase: 'single',
+            places,
+            result: places[0],
+            message: '',
+          }),
+        );
         setScreen('result');
       } else if (data.status === 'multiple' || data.status === 'candidates') {
-        setScreen(places.length ? 'candidates' : 'not-found');
+        const hasPlaces = places.length > 0;
+        setAnalysis((current) =>
+          resolveAnalysisRequest(current, requestId, {
+            phase: hasPlaces ? data.status : 'not_found',
+            places: hasPlaces ? places : [],
+            result: null,
+            message: '',
+          }),
+        );
+        setScreen(hasPlaces ? 'candidates' : 'not-found');
       } else if (data.status === 'not_found') {
+        setAnalysis((current) =>
+          resolveAnalysisRequest(current, requestId, {
+            phase: 'not_found',
+            places: [],
+            result: null,
+            message: '',
+          }),
+        );
         setScreen('not-found');
       } else {
-        setAnalysisMessage(
-          data.message ?? '이 인스타그램 게시물을 분석하지 못했어요.',
+        setAnalysis((current) =>
+          resolveAnalysisRequest(current, requestId, {
+            phase: 'error',
+            places: [],
+            result: null,
+            message:
+              data.message ?? '이 인스타그램 게시물을 분석하지 못했어요.',
+          }),
         );
         setScreen('analysis-error');
       }
     } catch (reason) {
-      setAnalysisMessage(
-        reason instanceof Error
-          ? reason.message
-          : '이 인스타그램 게시물을 분석하지 못했어요.',
+      if (
+        controller.signal.aborted ||
+        activeAnalysis.current?.requestId !== requestId
+      )
+        return;
+      setAnalysis((current) =>
+        resolveAnalysisRequest(current, requestId, {
+          phase: 'error',
+          places: [],
+          result: null,
+          message:
+            reason instanceof Error
+              ? reason.message
+              : '이 인스타그램 게시물을 분석하지 못했어요.',
+        }),
       );
       setScreen('analysis-error');
+    } finally {
+      if (activeAnalysis.current?.requestId === requestId)
+        activeAnalysis.current = null;
     }
-  };
+  }, []);
   const save = async (places: ResultPlace[]) => {
     const payload: PlaceInput[] = places.map(
       ({
@@ -1208,7 +1282,7 @@ export function TravelApp() {
         ...place
       }) => ({
         ...place,
-        instagramReelUrl: reelUrl,
+        instagramReelUrl: place.instagramReelUrl,
       }),
     );
     const result = await requestJson<{ status: 'saved' | 'duplicate' }>(
@@ -1265,7 +1339,13 @@ export function TravelApp() {
       ),
     ).catch(() => undefined);
     return () => lifecycle.abort();
-  }, []);
+  }, [analyze]);
+  useEffect(
+    () => () => {
+      activeAnalysis.current?.controller.abort();
+    },
+    [],
+  );
   if (screen === 'home')
     return (
       <HomeView
@@ -1287,10 +1367,15 @@ export function TravelApp() {
         onBack={() => setScreen('home')}
         onAnalyze={analyze}
         onManualSearch={() => openManualSearch()}
+        isAnalyzing={analysis.phase === 'analyzing'}
       />
     );
-  if (screen === 'analyzing') return <AnalyzingView />;
-  if (screen === 'result')
+  if (screen === 'analyzing')
+    return <AnalyzingView analysisUrl={analysis.analysisUrl} />;
+  if (screen === 'result') {
+    const resultPlace = analysis.result;
+    if (!resultPlace)
+      return <AnalyzingView analysisUrl={analysis.analysisUrl} />;
     return (
       <ResultView
         place={resultPlace}
@@ -1298,6 +1383,7 @@ export function TravelApp() {
         onSave={() => save([resultPlace])}
       />
     );
+  }
   if (screen === 'duplicate')
     return (
       <MessageView
@@ -1317,8 +1403,10 @@ export function TravelApp() {
       <Shell>
         <TopBar title="분석하지 못했어요" onBack={() => setScreen('add')} />
         <Failure
-          message={analysisMessage}
-          retry={() => void analyze(reelUrl)}
+          message={analysis.message}
+          retry={() => {
+            if (analysis.analysisUrl) void analyze(analysis.analysisUrl);
+          }}
         />
         <Button
           variant="ghost"
@@ -1332,12 +1420,12 @@ export function TravelApp() {
   if (screen === 'candidates')
     return (
       <CandidatesView
-        places={analysisResults}
+        places={analysis.places}
         onBack={() => setScreen('add')}
         onManualSearch={openManualSearch}
         onSave={(ids) =>
           save(
-            analysisResults.filter((place) =>
+            analysis.places.filter((place) =>
               ids.includes(resultPlaceId(place)),
             ),
           )
@@ -1350,7 +1438,18 @@ export function TravelApp() {
         onBack={() => setScreen('add')}
         initialQuery={manualSearchQuery}
         onSelect={(place) => {
-          setResultPlace({ ...place, instagramReelUrl: reelUrl });
+          const result = {
+            ...place,
+            instagramReelUrl:
+              analysis.analysisUrl ?? featuredPlace.instagramReelUrl,
+          };
+          setAnalysis((current) => ({
+            ...current,
+            phase: 'single',
+            places: [result],
+            result,
+            message: '',
+          }));
           setScreen('result');
         }}
       />
