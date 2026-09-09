@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { analyzeReel } from '@/services/reels/analyzeReel';
 
+// Reel analysis runs in a regular Node.js serverless function. It downloads
+// media into memory and does not depend on an Edge runtime, local files, or ffmpeg.
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as { url?: unknown };

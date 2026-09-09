@@ -88,6 +88,32 @@ npm run dev
 
 Windows PowerShell에서는 복사 명령으로 `Copy-Item .env.example .env.local`을 사용할 수 있습니다. 환경 변수를 변경했다면 개발 서버를 다시 시작합니다.
 
+## Netlify deployment
+
+GitHub 저장소의 `main` 브랜치를 Netlify에 연결하면 표준 Next.js 통합이 자동으로 적용됩니다.
+
+- Build command: `npm run build`
+- Publish directory: 직접 지정하지 않음(Netlify의 Next.js 통합이 관리)
+- Node.js: `.nvmrc`에 따라 최신 Node.js 22.x
+- Base directory: 저장소 루트
+- Functions region: Supabase Seoul 리전과 가까운 Tokyo 권장
+
+Netlify의 **Project configuration → Environment variables**에서 아래 변수를 등록합니다. 실제 값은 `netlify.toml`이나 Git 추적 파일에 넣지 않습니다.
+
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+GOOGLE_PLACES_API_KEY=
+GEMINI_API_KEY=
+GEMINI_REEL_ANALYSIS_MODEL=
+```
+
+`GEMINI_REEL_ANALYSIS_MODEL`을 비워 두면 `gemini-3.5-flash-lite`를 사용합니다. `NEXT_PUBLIC_SUPABASE_ANON_KEY`는 로컬 설정과 향후 브라우저용 Supabase 연결을 위해 예시 파일에 남겨 두었지만, 현재 구현에서는 사용하지 않으므로 Netlify 배포 필수 값이 아닙니다. `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_PLACES_API_KEY`, `GEMINI_API_KEY`는 반드시 Functions 범위에서 사용할 수 있게 설정하고 secret으로 표시합니다.
+
+Netlify Functions의 기본 송신 IP는 고정되지 않으므로 `GOOGLE_PLACES_API_KEY`에 일반 IP allowlist를 적용하면 호출이 실패할 수 있습니다. 별도의 고정 송신 IP 기능을 사용하지 않는다면 키에는 **Places API (New)** API 제한을 적용하고, 사용량·할당량·결제 알림을 함께 설정합니다.
+
+Reel/게시물 분석은 임시 파일이나 `ffmpeg` 없이 미디어를 함수 메모리로 내려받아 Gemini에 inline data로 전송합니다. 따라서 Node.js 함수와 호환되지만, Instagram 다운로드와 Gemini 분석을 포함한 전체 요청이 Netlify 동기 함수 제한인 60초를 넘으면 종료될 수 있습니다. 현재 UI가 동기 응답을 기다리므로 이 제한을 완전히 제거하려면 향후 background job과 상태 조회 방식으로 분리해야 합니다.
+
 ## DB connection check
 
 1. Home에서 seed 기준 `3 places across 2 regions`가 표시되는지 확인합니다.
