@@ -12,7 +12,7 @@ export async function DELETE(
   } catch (error) {
     console.error('deleteSavedPlace failed', error);
     return NextResponse.json(
-      { error: 'Could not delete this place.' },
+      { error: '장소를 삭제하지 못했어요.' },
       { status: 500 },
     );
   }

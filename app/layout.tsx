@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Instagram Places',
+  title: '인스타 여행지 저장함',
   description:
-    'Save travel places from Instagram posts and Reels, then browse them by region.',
+    '인스타그램 게시물과 릴스에서 발견한 여행 장소를 저장하고 지역별로 모아보세요.',
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ko">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

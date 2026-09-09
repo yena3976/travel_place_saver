@@ -21,10 +21,10 @@ export class AiProviderError extends Error {
   constructor(public kind: 'config' | 'quota' | 'temporary' | 'invalid') {
     super(
       kind === 'config'
-        ? 'Gemini analysis is not configured.'
+        ? 'Gemini 분석 설정이 필요해요.'
         : kind === 'quota'
-          ? 'Gemini usage limit reached. Check the API project quota.'
-          : 'AI analysis failed.',
+          ? 'Gemini 사용 한도에 도달했어요. API 프로젝트의 할당량을 확인해 주세요.'
+          : 'AI 분석에 실패했어요.',
     );
   }
 }

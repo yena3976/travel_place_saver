@@ -5,7 +5,7 @@ import type { ReelContent } from './types';
 
 export class ReelAccessError extends Error {
   constructor() {
-    super('This Instagram post is private, deleted, or unavailable.');
+    super('비공개되었거나 삭제되어 접근할 수 없는 인스타그램 게시물이에요.');
   }
 }
 

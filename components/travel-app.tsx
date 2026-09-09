@@ -75,10 +75,64 @@ type ResultPlace = PlaceInput & {
   verificationScore?: number;
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  Restaurant: '식당',
+  Cafe: '카페',
+  Bar: '바',
+  Hotel: '숙소',
+  Attraction: '관광명소',
+  Shopping: '쇼핑',
+  Activity: '액티비티',
+  Nature: '자연',
+  Other: '기타',
+};
+const COUNTRY_LABELS: Record<string, string> = {
+  Indonesia: '인도네시아',
+  Japan: '일본',
+  'South Korea': '대한민국',
+  France: '프랑스',
+  Thailand: '태국',
+  Vietnam: '베트남',
+  Singapore: '싱가포르',
+  Malaysia: '말레이시아',
+  Taiwan: '대만',
+  China: '중국',
+  Italy: '이탈리아',
+  Spain: '스페인',
+  Portugal: '포르투갈',
+  'United States': '미국',
+  'United Kingdom': '영국',
+  Australia: '호주',
+};
+const LOCATION_LABELS: Record<string, string> = {
+  Bali: '발리',
+  Ubud: '우붓',
+  Seminyak: '스미냑',
+  Tokyo: '도쿄',
+  Taito: '다이토',
+  Minato: '미나토',
+  Shibuya: '시부야',
+  Shinjuku: '신주쿠',
+  Chuo: '주오',
+  Seoul: '서울',
+  Seochon: '서촌',
+  Gangnam: '강남',
+  'Jahamun-ro 8-gil': '자하문로 8길',
+  'Bukchon-ro 4-gil': '북촌로 4길',
+  Paris: '파리',
+  Nice: '니스',
+};
+const categoryLabel = (value?: string | null) =>
+  (value && CATEGORY_LABELS[value]) || value || '기타';
+const countryLabel = (value?: string | null) =>
+  (value && COUNTRY_LABELS[value]) || value || '국가 미상';
+const locationLabel = (value?: string | null) =>
+  (value && LOCATION_LABELS[value]) || value || null;
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
   const body = (await response.json()) as T & { error?: string };
-  if (!response.ok) throw new Error(body.error ?? 'Something went wrong.');
+  if (!response.ok) throw new Error(body.error ?? '요청을 처리하지 못했어요.');
   return body;
 }
 
@@ -89,7 +143,7 @@ function TopBar({ title, onBack }: { title: string; onBack: () => void }) {
         variant="ghost"
         size="icon-lg"
         onClick={onBack}
-        aria-label="Go back"
+        aria-label="뒤로 가기"
         className="-ml-2 rounded-full"
       >
         <ArrowLeft />
@@ -115,12 +169,12 @@ function Failure({ message, retry }: { message: string; retry: () => void }) {
         >
           <CircleAlert />
         </EmptyMedia>
-        <EmptyTitle className="text-lg">Couldn’t load places</EmptyTitle>
+        <EmptyTitle className="text-lg">장소를 불러오지 못했어요</EmptyTitle>
         <EmptyDescription>{message}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
         <Button onClick={retry} variant="outline" className="h-11 rounded-xl">
-          <RefreshCw /> Try again
+          <RefreshCw /> 다시 시도
         </Button>
       </EmptyContent>
     </Empty>
@@ -152,18 +206,18 @@ function RegionCard({
       )}
       <span className="min-w-0 flex-1">
         <span className="block text-lg font-bold tracking-tight">
-          {region.destination}
+          {locationLabel(region.destination)}
         </span>
         <span className="mt-1 flex items-center gap-1 text-sm font-medium text-muted-foreground">
           <MapPin className="size-3.5 text-primary" />
-          {region.country}
+          {countryLabel(region.country)}
         </span>
       </span>
       <span className="text-right">
         <span className="block text-lg font-bold text-primary">
           {region.count}
         </span>
-        <span className="block text-xs text-muted-foreground">places</span>
+        <span className="block text-xs text-muted-foreground">곳</span>
       </span>
       <ChevronRight className="size-5 text-primary/55" />
     </button>
@@ -194,20 +248,20 @@ function HomeView({
           <span className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground">
             <MapPin className="size-4" />
           </span>
-          Instagram Places
+          인스타그램 여행지
         </div>
         <h1 className="text-[2.35rem] font-semibold leading-none tracking-[-0.05em]">
-          Saved places
+          저장한 장소
         </h1>
         {state === 'ready' && (
           <p className="mt-3 text-base text-muted-foreground">
-            <span className="font-semibold text-foreground">{total}</span>{' '}
-            places across {regions.length} regions
+            총 <span className="font-semibold text-foreground">{total}</span>곳
+            {' · '}여행지 {regions.length}개
           </p>
         )}
       </header>
       {state === 'loading' && (
-        <div className="space-y-3" aria-label="Loading saved regions">
+        <div className="space-y-3" aria-label="저장한 여행지 불러오는 중">
           {[1, 2, 3].map((item) => (
             <Skeleton key={item} className="h-20 rounded-[1.25rem]" />
           ))}
@@ -223,15 +277,17 @@ function HomeView({
             >
               <MapPin />
             </EmptyMedia>
-            <EmptyTitle className="text-lg">No saved places yet</EmptyTitle>
+            <EmptyTitle className="text-lg">
+              아직 저장한 장소가 없어요
+            </EmptyTitle>
             <EmptyDescription>
-              Found somewhere worth remembering? Paste its Instagram post or
-              Reel and we’ll help you save it.
+              기억해 두고 싶은 장소가 있나요? 인스타그램 게시물이나 릴스 링크를
+              붙여 넣어 저장해 보세요.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button onClick={onAdd} size="lg" className="h-12 rounded-xl px-5">
-              Add your first place
+              첫 장소 추가하기
             </Button>
           </EmptyContent>
         </Empty>
@@ -243,12 +299,12 @@ function HomeView({
               id="regions-heading"
               className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground"
             >
-              Your regions
+              내 여행지
             </h2>
             <button
               onClick={retry}
               className="grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-secondary"
-              aria-label="Reload regions"
+              aria-label="여행지 다시 불러오기"
             >
               <RefreshCw className="size-4" />
             </button>
@@ -266,10 +322,10 @@ function HomeView({
       )}
       <button
         onClick={onAdd}
-        aria-label="Add a place"
+        aria-label="장소 추가"
         className="fixed bottom-6 left-1/2 flex h-14 -translate-x-1/2 items-center gap-2 rounded-full bg-primary px-6 font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(37,99,235,0.32)]"
       >
-        <Plus className="size-5" /> Add place
+        <Plus className="size-5" /> 장소 추가
       </button>
     </Shell>
   );
@@ -292,7 +348,7 @@ function AddView({
         url,
       )
     ) {
-      setError('Paste a valid Instagram post or Reel URL.');
+      setError('올바른 인스타그램 게시물 또는 릴스 URL을 붙여 넣어 주세요.');
       return;
     }
     onAnalyze(url);
@@ -302,27 +358,27 @@ function AddView({
       setUrl(await navigator.clipboard.readText());
       setError('');
     } catch {
-      setError('Clipboard access is unavailable. Paste the URL manually.');
+      setError('클립보드를 읽을 수 없어요. URL을 직접 붙여 넣어 주세요.');
     }
   };
   return (
     <Shell>
-      <TopBar title="Add a place" onBack={onBack} />
+      <TopBar title="장소 추가" onBack={onBack} />
       <div className="mb-8">
         <span className="mb-4 grid size-12 place-items-center rounded-2xl bg-secondary text-primary">
           <Instagram />
         </span>
         <h2 className="text-[2rem] font-semibold leading-tight tracking-[-0.04em]">
-          Paste an Instagram post.
+          인스타그램 링크를 붙여 넣으면
           <br />
-          We’ll find the place.
+          장소를 찾아드려요.
         </h2>
         <p className="mt-3 text-base text-muted-foreground">
-          Copy the link from Instagram and paste it below.
+          인스타그램에서 게시물 링크를 복사해 아래에 붙여 넣어 주세요.
         </p>
       </div>
       <label htmlFor="reel-url" className="mb-2 block text-sm font-semibold">
-        Instagram post or Reel URL
+        인스타그램 게시물 또는 릴스 URL
       </label>
       <div
         className={`flex rounded-2xl border bg-card p-1.5 shadow-sm focus-within:ring-4 focus-within:ring-ring/20 ${error ? 'border-destructive' : ''}`}
@@ -343,7 +399,7 @@ function AddView({
           className="h-11 rounded-xl"
           onClick={paste}
         >
-          <Clipboard /> Paste
+          <Clipboard /> 붙여넣기
         </Button>
       </div>
       {error && (
@@ -357,7 +413,7 @@ function AddView({
         onClick={() => onManualSearch()}
         className="mt-4 h-12 w-full rounded-xl"
       >
-        <Search /> Search for a place manually
+        <Search /> 장소 직접 검색하기
       </Button>
       <div className="fixed inset-x-0 bottom-0 border-t bg-background/90 p-4 backdrop-blur">
         <Button
@@ -365,7 +421,7 @@ function AddView({
           disabled={!url}
           className="mx-auto flex h-14 w-full max-w-[430px] rounded-2xl text-base"
         >
-          Analyze post <Sparkles />
+          게시물 분석하기 <Sparkles />
         </Button>
       </div>
     </Shell>
@@ -379,9 +435,9 @@ function AnalyzingView() {
           <span className="absolute inset-0 animate-ping rounded-[2rem] bg-primary/10" />
           <LoaderCircle className="size-9 animate-spin" />
         </div>
-        <h1 className="text-2xl font-semibold">Finding this place…</h1>
+        <h1 className="text-2xl font-semibold">장소를 찾고 있어요…</h1>
         <p className="mt-3 max-w-xs text-base text-muted-foreground">
-          Reading the post, extracting places, and checking Google Places.
+          게시물을 읽고 장소를 추출한 뒤 Google Places에서 확인하고 있어요.
         </p>
       </div>
     </Shell>
@@ -394,36 +450,36 @@ function PlacePreview({ place }: { place: ResultPlace }) {
         <div className="relative aspect-[16/9]">
           <img
             src={place.image}
-            alt={`${place.name} in ${place.area}`}
+            alt={`${place.area ?? '여행지'}의 ${place.name}`}
             className="h-full w-full object-cover"
           />
           <Badge className="absolute left-4 top-4 h-8 rounded-full bg-card/95 px-3 text-primary">
-            <Check className="size-3.5" /> Verified place
+            <Check className="size-3.5" /> Google 장소 확인됨
           </Badge>
         </div>
       )}
       <div className="p-5">
         {!place.image && (
           <Badge className="mb-4 h-8 rounded-full bg-secondary px-3 text-primary">
-            <Check className="size-3.5" /> Verified place
+            <Check className="size-3.5" /> Google 장소 확인됨
           </Badge>
         )}
         <p className="mb-2 flex items-center gap-1.5 text-base font-semibold text-primary">
           <MapPin className="size-4" />
-          {place.area ?? 'Unknown area'},{' '}
-          {place.destination ?? place.city ?? 'Unknown destination'}
+          {locationLabel(place.area) ?? '세부 지역 미상'},{' '}
+          {locationLabel(place.destination ?? place.city) ?? '여행지 미상'}
         </p>
         <h2 className="text-2xl font-bold leading-tight">{place.name}</h2>
         <p className="mt-2 text-sm font-medium text-muted-foreground">
-          {place.category} · {place.country}
+          {categoryLabel(place.category)} · {countryLabel(place.country)}
         </p>
         {place.status &&
           place.status !== 'open' &&
           place.status !== 'unknown' && (
             <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
               {place.status === 'permanently_closed'
-                ? 'Permanently closed'
-                : 'Temporarily closed'}
+                ? '폐업한 장소예요'
+                : '임시 휴업 중이에요'}
             </p>
           )}
         <div className="mt-5 grid grid-cols-2 gap-2">
@@ -443,7 +499,7 @@ function PlacePreview({ place }: { place: ResultPlace }) {
             className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-secondary text-sm font-semibold text-secondary-foreground"
           >
             <Map className="size-4" />
-            Google Maps
+            Google 지도
           </a>
         </div>
       </div>
@@ -468,14 +524,14 @@ function ResultView({
       await onSave();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : 'Could not save this place.',
+        reason instanceof Error ? reason.message : '장소를 저장하지 못했어요.',
       );
       setSaving(false);
     }
   };
   return (
     <Shell>
-      <TopBar title="Place found" onBack={onBack} />
+      <TopBar title="장소를 찾았어요" onBack={onBack} />
       <PlacePreview place={place} />
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="fixed inset-x-0 bottom-0 border-t bg-background/90 p-4 backdrop-blur">
@@ -486,11 +542,11 @@ function ResultView({
         >
           {saving ? (
             <>
-              <LoaderCircle className="animate-spin" /> Saving…
+              <LoaderCircle className="animate-spin" /> 저장 중…
             </>
           ) : (
             <>
-              Save place <ArrowRight />
+              장소 저장하기 <ArrowRight />
             </>
           )}
         </Button>
@@ -507,7 +563,7 @@ function MessageView({
 }) {
   return (
     <Shell>
-      <TopBar title="Already saved" onBack={onBack} />
+      <TopBar title="이미 저장한 장소예요" onBack={onBack} />
       <Empty className="min-h-[520px] border bg-card/70">
         <EmptyHeader>
           <EmptyMedia
@@ -516,17 +572,15 @@ function MessageView({
           >
             <Check />
           </EmptyMedia>
-          <EmptyTitle className="text-xl">
-            This place is already saved
-          </EmptyTitle>
+          <EmptyTitle className="text-xl">이미 저장한 장소예요</EmptyTitle>
           <EmptyDescription>
-            No duplicate was created. You can find the existing place in its
-            region.
+            중복으로 저장하지 않았어요. 해당 여행지에서 기존 장소를 확인할 수
+            있어요.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button onClick={onRegion} className="h-12 rounded-xl px-5">
-            View saved place
+            저장한 장소 보기
           </Button>
         </EmptyContent>
       </Empty>
@@ -542,7 +596,7 @@ function NotFoundView({
 }) {
   return (
     <Shell>
-      <TopBar title="No place found" onBack={onBack} />
+      <TopBar title="장소를 찾지 못했어요" onBack={onBack} />
       <Empty className="min-h-[520px] border bg-card/70">
         <EmptyHeader>
           <EmptyMedia
@@ -551,24 +605,22 @@ function NotFoundView({
           >
             <Search />
           </EmptyMedia>
-          <EmptyTitle className="text-xl">
-            We couldn’t identify a place
-          </EmptyTitle>
+          <EmptyTitle className="text-xl">장소를 확인하기 어려워요</EmptyTitle>
           <EmptyDescription>
-            The post may not include enough location detail. Search for it
-            manually or try another link.
+            게시물에 위치 정보가 부족할 수 있어요. 직접 검색하거나 다른 링크를
+            시도해 보세요.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button onClick={onManualSearch} className="h-12 rounded-xl px-5">
-            Search manually
+            직접 검색하기
           </Button>
           <Button
             variant="ghost"
             onClick={onBack}
             className="h-12 rounded-xl px-5"
           >
-            Try another post
+            다른 게시물 시도하기
           </Button>
         </EmptyContent>
       </Empty>
@@ -630,7 +682,7 @@ function ManualSearchView({
   };
   return (
     <Shell>
-      <TopBar title="Search places" onBack={onBack} />
+      <TopBar title="장소 검색" onBack={onBack} />
       <div className="relative">
         <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -642,13 +694,13 @@ function ManualSearchView({
       </div>
       {state === 'default' && (
         <p className="mt-3 text-sm text-muted-foreground">
-          Enter at least 3 characters to search Google Places.
+          Google Places에서 검색할 글자를 3자 이상 입력해 주세요.
         </p>
       )}
       {state === 'searching' && (
         <div className="mt-8 flex items-center justify-center gap-2 text-muted-foreground">
           <LoaderCircle className="size-5 animate-spin" />
-          Searching places…
+          장소 검색 중…
         </div>
       )}
       {state === 'empty' && (
@@ -657,9 +709,9 @@ function ManualSearchView({
             <EmptyMedia variant="icon">
               <Search />
             </EmptyMedia>
-            <EmptyTitle>No places found</EmptyTitle>
+            <EmptyTitle>검색 결과가 없어요</EmptyTitle>
             <EmptyDescription>
-              Try adding a city, area, or country.
+              도시, 세부 지역, 국가명을 함께 입력해 보세요.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -686,9 +738,9 @@ function ManualSearchView({
                 <span className="block font-bold">{result.name}</span>
                 <span className="mt-1 block text-sm text-primary">
                   {[
-                    result.area,
-                    result.destination ?? result.city,
-                    result.country,
+                    locationLabel(result.area),
+                    locationLabel(result.destination ?? result.city),
+                    countryLabel(result.country),
                   ]
                     .filter(Boolean)
                     .join(', ')}
@@ -737,20 +789,20 @@ function CandidatesView({
       await onSave(selected);
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : 'Could not save places.',
+        reason instanceof Error ? reason.message : '장소를 저장하지 못했어요.',
       );
       setSaving(false);
     }
   };
   return (
     <Shell>
-      <TopBar title="Select places" onBack={onBack} />
+      <TopBar title="저장할 장소 선택" onBack={onBack} />
       <div className="mb-5 flex items-end justify-between gap-4">
         <p className="max-w-[17rem] text-base text-muted-foreground">
-          Select every place you want to save.
+          저장할 장소를 모두 선택해 주세요.
         </p>
         <span className="shrink-0 rounded-full bg-secondary px-3 py-1.5 text-sm font-bold text-primary">
-          {selected.length} selected
+          {selected.length}개 선택
         </span>
       </div>
       <div className="space-y-3">
@@ -775,7 +827,7 @@ function CandidatesView({
                 <div className="min-w-0 flex-1">
                   {place.matchStatus === 'verified' && (
                     <Badge className="mb-2 bg-secondary text-primary">
-                      <Check className="size-3" /> Google Places verified
+                      <Check className="size-3" /> Google 장소 확인됨
                     </Badge>
                   )}
                   {needsConfirmation && (
@@ -815,24 +867,26 @@ function CandidatesView({
                   )}
                   <p className="mt-2 flex items-center gap-1 text-sm font-semibold text-primary">
                     <MapPin className="size-3.5" />
-                    {[place.area, place.destination ?? place.city]
+                    {[
+                      locationLabel(place.area),
+                      locationLabel(place.destination ?? place.city),
+                    ]
                       .filter(Boolean)
-                      .join(', ') ||
-                      'Unknown location'}
+                      .join(', ') || '위치 정보 미상'}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {place.category} ·{' '}
+                    {categoryLabel(place.category)} ·{' '}
                     {Math.round(
                       (place.verificationScore ?? place.confidence ?? 0) * 100,
                     )}
-                    % match
+                    % 일치
                   </p>
                 </div>
                 {!notFound && (
                   <Checkbox
                     checked={checked}
                     onCheckedChange={(value) => toggle(id, value === true)}
-                    aria-label={`Select ${place.googlePlaceName ?? place.name}`}
+                    aria-label={`${place.googlePlaceName ?? place.name} 선택`}
                     className="size-6 rounded-lg"
                   />
                 )}
@@ -863,7 +917,7 @@ function CandidatesView({
         onClick={() => onManualSearch()}
         className="mt-5 h-12 w-full rounded-xl"
       >
-        None of these — search manually
+        해당하는 장소 없음 · 직접 검색하기
       </Button>
       <div className="fixed inset-x-0 bottom-0 border-t bg-background/90 p-4 backdrop-blur">
         <Button
@@ -873,12 +927,11 @@ function CandidatesView({
         >
           {saving ? (
             <>
-              <LoaderCircle className="animate-spin" /> Saving…
+              <LoaderCircle className="animate-spin" /> 저장 중…
             </>
           ) : (
             <>
-              Save {selected.length}{' '}
-              {selected.length === 1 ? 'place' : 'places'} <ArrowRight />
+              {selected.length}개 장소 저장하기 <ArrowRight />
             </>
           )}
         </Button>
@@ -900,14 +953,14 @@ function PlaceCard({
         <div className="min-w-0 flex-1">
           <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-primary">
             <MapPin className="size-4" />
-            {place.area ?? 'Unspecified'},{' '}
-            {place.destination ?? place.city ?? 'Unknown destination'}
+            {locationLabel(place.area) ?? '세부 지역 미상'},{' '}
+            {locationLabel(place.destination ?? place.city) ?? '여행지 미상'}
           </p>
           <h3 className="text-[1.05rem] font-bold leading-snug">
             {place.name}
           </h3>
           <p className="mt-1 text-sm font-medium text-muted-foreground">
-            {place.category ?? 'Other'}
+            {categoryLabel(place.category)}
           </p>
         </div>
         {place.thumbnailUrl && (
@@ -919,20 +972,20 @@ function PlaceCard({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger
-            aria-label={`More options for ${place.name}`}
+            aria-label={`${place.name} 더보기`}
             className="grid size-10 shrink-0 place-items-center rounded-full hover:bg-muted"
           >
             <MoreHorizontal className="size-5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem>
-              <ExternalLink /> Open details
+              <ExternalLink /> 상세 보기
             </DropdownMenuItem>
             <DropdownMenuItem
               variant="destructive"
               onClick={() => onDelete(place.id)}
             >
-              <Trash2 /> Delete place
+              <Trash2 /> 장소 삭제
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -955,7 +1008,7 @@ function PlaceCard({
             className="flex min-h-9 items-center gap-1.5 text-sm font-semibold text-primary"
           >
             <Map className="size-4" />
-            Maps
+            지도
           </a>
         )}
       </div>
@@ -988,7 +1041,7 @@ function RegionView({
       setError(
         reason instanceof Error
           ? reason.message
-          : 'Could not load this region.',
+          : '이 여행지를 불러오지 못했어요.',
       );
       setState('error');
     }
@@ -1003,20 +1056,21 @@ function RegionView({
       onChanged();
     } catch (reason) {
       setError(
-        reason instanceof Error
-          ? reason.message
-          : 'Could not delete this place.',
+        reason instanceof Error ? reason.message : '장소를 삭제하지 못했어요.',
       );
     }
   };
-  const grouped = Object.groupBy(places, (place) => place.area ?? 'Other');
+  const grouped = Object.groupBy(places, (place) => place.area ?? '기타 지역');
   return (
     <Shell>
-      <TopBar title={destination} onBack={onBack} />
+      <TopBar
+        title={locationLabel(destination) ?? destination}
+        onBack={onBack}
+      />
       <div className="mb-7 rounded-[1.5rem] bg-primary p-5 text-primary-foreground">
-        <p className="text-sm opacity-75">{country}</p>
+        <p className="text-sm opacity-75">{countryLabel(country)}</p>
         <p className="mt-1 text-3xl font-semibold">
-          {places.length} saved places
+          저장한 장소 {places.length}곳
         </p>
       </div>
       {state === 'loading' && (
@@ -1032,9 +1086,11 @@ function RegionView({
             <EmptyMedia variant="icon">
               <MapPin />
             </EmptyMedia>
-            <EmptyTitle>No places left in {destination}</EmptyTitle>
+            <EmptyTitle>
+              {locationLabel(destination) ?? destination}에 저장한 장소가 없어요
+            </EmptyTitle>
             <EmptyDescription>
-              Return home to browse another region or add a place.
+              홈으로 돌아가 다른 여행지를 보거나 새 장소를 추가해 보세요.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -1044,9 +1100,11 @@ function RegionView({
           {Object.entries(grouped).map(([area, items]) => (
             <section key={area}>
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">{area}</h2>
+                <h2 className="text-lg font-semibold">
+                  {locationLabel(area) ?? area}
+                </h2>
                 <span className="text-sm text-muted-foreground">
-                  {items?.length} places
+                  {items?.length}곳
                 </span>
               </div>
               <div className="space-y-3">
@@ -1093,7 +1151,7 @@ export function TravelApp() {
       setLoadState('ready');
     } catch (reason) {
       setLoadError(
-        reason instanceof Error ? reason.message : 'Could not load places.',
+        reason instanceof Error ? reason.message : '장소를 불러오지 못했어요.',
       );
       setLoadState('error');
     }
@@ -1128,7 +1186,7 @@ export function TravelApp() {
         setScreen('not-found');
       } else {
         setAnalysisMessage(
-          data.message ?? 'We could not analyze this Instagram post.',
+          data.message ?? '이 인스타그램 게시물을 분석하지 못했어요.',
         );
         setScreen('analysis-error');
       }
@@ -1136,7 +1194,7 @@ export function TravelApp() {
       setAnalysisMessage(
         reason instanceof Error
           ? reason.message
-          : 'We could not analyze this Instagram post.',
+          : '이 인스타그램 게시물을 분석하지 못했어요.',
       );
       setScreen('analysis-error');
     }
@@ -1165,9 +1223,8 @@ export function TravelApp() {
       },
     );
     setSelectedRegion({
-      destination:
-        places[0].destination ?? places[0].city ?? 'Unknown',
-      country: places[0].country ?? 'Unknown',
+      destination: places[0].destination ?? places[0].city ?? '여행지 미상',
+      country: places[0].country ?? '국가 미상',
     });
     await loadRegions();
     setScreen(result.status === 'duplicate' ? 'duplicate' : 'region');
@@ -1180,9 +1237,9 @@ export function TravelApp() {
       context.registerTool(
         {
           name: 'start_instagram_analysis',
-          title: 'Analyze Instagram post',
+          title: '인스타그램 게시물 분석',
           description:
-            'Analyze an Instagram post or Reel and find verified travel places.',
+            '인스타그램 게시물이나 릴스를 분석해 확인된 여행 장소를 찾습니다.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -1201,7 +1258,7 @@ export function TravelApp() {
               )
             )
               throw new Error(
-                'A valid Instagram post or Reel URL is required.',
+                '올바른 인스타그램 게시물 또는 릴스 URL이 필요해요.',
               );
             void analyze(data.url);
             return { status: 'analyzing', url: data.url };
@@ -1261,7 +1318,7 @@ export function TravelApp() {
   if (screen === 'analysis-error')
     return (
       <Shell>
-        <TopBar title="Analysis failed" onBack={() => setScreen('add')} />
+        <TopBar title="분석하지 못했어요" onBack={() => setScreen('add')} />
         <Failure
           message={analysisMessage}
           retry={() => void analyze(reelUrl)}
@@ -1271,7 +1328,7 @@ export function TravelApp() {
           onClick={() => openManualSearch()}
           className="mt-4 h-12 w-full rounded-xl"
         >
-          <Search /> Search manually
+          <Search /> 직접 검색하기
         </Button>
       </Shell>
     );

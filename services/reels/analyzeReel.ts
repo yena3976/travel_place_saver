@@ -151,7 +151,7 @@ export async function analyzeReel(value: string): Promise<ReelAnalysisResult> {
           ? error.message
           : error instanceof Error
             ? error.message
-            : 'We could not analyze this Instagram post. Please try again or search manually.',
+            : '이 인스타그램 게시물을 분석하지 못했어요. 다시 시도하거나 직접 검색해 주세요.',
     };
   }
 }

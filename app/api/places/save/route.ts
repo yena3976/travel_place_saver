@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { places?: PlaceInput[] };
     if (!Array.isArray(body.places) || body.places.length === 0)
       return NextResponse.json(
-        { error: 'Select at least one place.' },
+        { error: '저장할 장소를 하나 이상 선택해 주세요.' },
         { status: 400 },
       );
     const results = [];
@@ -24,8 +24,8 @@ export async function POST(request: Request) {
       {
         error:
           error instanceof Error && error.message.includes('Invalid Instagram')
-            ? error.message
-            : 'Could not save this place.',
+            ? '올바른 인스타그램 게시물 또는 릴스 URL을 입력해 주세요.'
+            : '장소를 저장하지 못했어요.',
       },
       { status: 500 },
     );

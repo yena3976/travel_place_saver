@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { url?: unknown };
     if (typeof body.url !== 'string')
       return NextResponse.json(
-        { error: 'A valid Instagram post or Reel URL is required.' },
+        { error: '올바른 인스타그램 게시물 또는 릴스 URL이 필요해요.' },
         { status: 400 },
       );
     return NextResponse.json(await analyzeReel(body.url));
@@ -16,8 +16,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: invalid
-          ? error.message
-          : 'Could not analyze this Instagram post.',
+          ? '올바른 인스타그램 게시물 또는 릴스 URL을 입력해 주세요.'
+          : '이 인스타그램 게시물을 분석하지 못했어요.',
       },
       { status: invalid ? 400 : 500 },
     );
