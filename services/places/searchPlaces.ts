@@ -2,15 +2,25 @@ import 'server-only';
 import { googleTextSearch } from './googleClient';
 import { mapPlaceCategory, parseAddressComponents } from './normalizePlace';
 import { normalizeSearchQuery } from './normalizeQuery';
-import type { PlaceSearchResult } from './types';
+import {
+  buildPlacesSearchCacheKey,
+  detectQueryLanguage,
+} from './searchContext';
+import type { PlaceSearchOptions, PlaceSearchResult } from './types';
 
 const cache = new Map<string, { expires: number; data: PlaceSearchResult[] }>();
 export async function searchPlaces(
   query: string,
+  options: PlaceSearchOptions = {},
 ): Promise<{ results: PlaceSearchResult[]; cacheHit: boolean }> {
   const normalized = normalizeSearchQuery(query);
   if (normalized.length < 3) return { results: [], cacheHit: false };
-  const cached = cache.get(normalized);
+  const resolvedOptions = {
+    ...options,
+    languageCode: options.languageCode ?? detectQueryLanguage(query),
+  };
+  const cacheKey = buildPlacesSearchCacheKey(normalized, resolvedOptions);
+  const cached = cache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
     console.info('places_usage', {
       provider: 'google_places',
@@ -22,7 +32,7 @@ export async function searchPlaces(
     });
     return { results: cached.data, cacheHit: true };
   }
-  const places = await googleTextSearch(normalized);
+  const places = await googleTextSearch(normalized, resolvedOptions);
   const results = places.flatMap((place) => {
     if (!place.id || !place.displayName?.text) return [];
     const address = parseAddressComponents(place.addressComponents);
@@ -39,6 +49,6 @@ export async function searchPlaces(
       },
     ];
   });
-  cache.set(normalized, { expires: Date.now() + 5 * 60_000, data: results });
+  cache.set(cacheKey, { expires: Date.now() + 5 * 60_000, data: results });
   return { results, cacheHit: false };
 }

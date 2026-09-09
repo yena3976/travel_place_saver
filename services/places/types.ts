@@ -71,15 +71,31 @@ export type PlaceSearchResult = {
   googleAdminAreaLevel1: string | null;
   googleAdminAreaLevel2: string | null;
 };
+export type PlaceSearchLanguage = 'ko' | 'ja' | 'zh' | 'en';
+export type PlaceLocationBias = {
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+};
+export type PlaceSearchOptions = {
+  languageCode?: PlaceSearchLanguage;
+  regionCode?: string | null;
+  locationBias?: PlaceLocationBias | null;
+};
 export type VerifiedPlace = Omit<PlaceInput, 'instagramReelUrl'> & {
   googlePlaceId: string;
   category: PlaceCategory;
 };
 export type VerificationInput = {
   name: string;
+  alternateNames?: string[];
   country?: string | null;
+  countryCode?: string | null;
   city?: string | null;
+  destination?: string | null;
   area?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 export type MatchStatus = 'verified' | 'needs_confirmation' | 'not_found';
 export type VerificationResult = {

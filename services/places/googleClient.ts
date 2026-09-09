@@ -1,5 +1,6 @@
 import 'server-only';
 import type { GooglePlace } from './googleTypes';
+import type { PlaceSearchOptions } from './types';
 
 const baseUrl = 'https://places.googleapis.com/v1';
 export class PlacesProviderError extends Error {
@@ -23,10 +24,11 @@ async function request<T>(
   init: RequestInit,
   fieldMask: string,
   operation: string,
+  maxAttempts = 2,
 ): Promise<T> {
   const started = Date.now();
   let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
       const headers = new Headers(init.headers);
       headers.set('Content-Type', 'application/json');
@@ -54,7 +56,10 @@ async function request<T>(
           : response.status >= 500
             ? 'server'
             : 'invalid';
-      if ((kind === 'quota' || kind === 'server') && attempt === 0) {
+      if (
+        (kind === 'quota' || kind === 'server') &&
+        attempt < maxAttempts - 1
+      ) {
         await new Promise((resolve) => setTimeout(resolve, 150));
         continue;
       }
@@ -65,7 +70,7 @@ async function request<T>(
     } catch (error) {
       lastError = error;
       if (error instanceof PlacesProviderError) throw error;
-      if (attempt === 0) {
+      if (attempt < maxAttempts - 1) {
         await new Promise((resolve) => setTimeout(resolve, 150));
         continue;
       }
@@ -87,7 +92,21 @@ async function request<T>(
   );
 }
 
-export async function googleTextSearch(query: string): Promise<GooglePlace[]> {
+export async function googleTextSearch(
+  query: string,
+  options: PlaceSearchOptions = {},
+): Promise<GooglePlace[]> {
+  const locationBias = options.locationBias
+    ? {
+        circle: {
+          center: {
+            latitude: options.locationBias.latitude,
+            longitude: options.locationBias.longitude,
+          },
+          radius: options.locationBias.radiusMeters,
+        },
+      }
+    : undefined;
   const result = await request<{ places?: GooglePlace[] }>(
     `${baseUrl}/places:searchText`,
     {
@@ -95,11 +114,14 @@ export async function googleTextSearch(query: string): Promise<GooglePlace[]> {
       body: JSON.stringify({
         textQuery: query,
         pageSize: 8,
-        languageCode: 'en',
+        languageCode: options.languageCode ?? 'en',
+        regionCode: options.regionCode ?? undefined,
+        locationBias,
       }),
     },
     'places.id,places.displayName,places.formattedAddress,places.addressComponents,places.primaryType,places.types',
     'search',
+    1,
   );
   return result.places ?? [];
 }

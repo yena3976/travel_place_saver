@@ -1,3 +1,5 @@
+import { countryRegionCode } from './searchContext.ts';
+
 export type DestinationInput = {
   country?: string | null;
   countryCode?: string | null;
@@ -102,12 +104,11 @@ function baliArea(values: Array<string | null | undefined>) {
 export function normalizeDestination(
   input: DestinationInput,
 ): NormalizedDestination {
-  const countryKey = key(input.country);
-  const countryCode = key(input.countryCode);
+  const regionCode = countryRegionCode(input.country, input.countryCode);
   const localityKey = key(input.locality);
   const admin1Key = key(input.adminArea1);
   const admin2Key = key(input.adminArea2);
-  const isJapan = countryCode === 'jp' || countryKey === 'japan';
+  const isJapan = regionCode === 'jp';
   const ward = [input.locality, input.adminArea2, input.sublocality1]
     .map(tokyoWard)
     .find(Boolean);
@@ -136,9 +137,7 @@ export function normalizeDestination(
     };
   }
 
-  const isKorea =
-    countryCode === 'kr' ||
-    ['south korea', 'republic of korea', 'korea'].includes(countryKey);
+  const isKorea = regionCode === 'kr';
   const isSeoul = [localityKey, admin1Key, admin2Key].some((value) =>
     value.includes('seoul'),
   );
@@ -167,14 +166,12 @@ export function normalizeDestination(
     input.adminArea2,
     input.fallbackArea,
   ];
-  const isIndonesia = countryCode === 'id' || countryKey === 'indonesia';
+  const isIndonesia = regionCode === 'id';
   const knownBaliArea = baliArea(baliCandidates);
   if (isIndonesia && (admin1Key.includes('bali') || knownBaliArea)) {
     return {
       destination: 'Bali',
-      area:
-        knownBaliArea ??
-        firstDistinct(baliCandidates, 'bali'),
+      area: knownBaliArea ?? firstDistinct(baliCandidates, 'bali'),
     };
   }
 

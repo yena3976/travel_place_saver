@@ -86,8 +86,12 @@ export async function analyzeReel(value: string): Promise<ReelAnalysisResult> {
       const verified = await Promise.all(
         extracted.map((place) =>
           verifyPlace({
-            ...place,
-            name: place.searchName ?? place.name,
+            name: place.name,
+            alternateNames: place.searchName ? [place.searchName] : [],
+            country: place.country,
+            city: place.city,
+            destination: place.city,
+            area: place.area,
           }),
         ),
       );

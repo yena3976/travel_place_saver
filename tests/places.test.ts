@@ -10,6 +10,13 @@ import { normalizeSearchQuery } from '../services/places/normalizeQuery.ts';
 import { normalizeDestination } from '../services/places/normalizeDestination.ts';
 import { groupDestinations } from '../services/places/groupDestinations.ts';
 import {
+  buildPlacesSearchCacheKey,
+  buildVerificationSearchPlan,
+  countryRegionCode,
+  detectQueryLanguage,
+  runPlaceSearchPlan,
+} from '../services/places/searchContext.ts';
+import {
   hasConsistentLocation,
   hasCrossScriptNames,
   matchStatusFor,
@@ -29,6 +36,90 @@ const components = [
 
 void test('normalizes search queries', () =>
   assert.equal(normalizeSearchQuery('  WYAH   Ubud '), 'wyah ubud'));
+
+void test('builds a Korean Places search with location context', () => {
+  const [attempt] = buildVerificationSearchPlan({
+    name: '오버트 커피바',
+    area: '서촌',
+    destination: '서울',
+    country: '대한민국',
+  });
+  assert.equal(attempt.query, '오버트 커피바 서촌 서울 대한민국');
+  assert.equal(attempt.options.languageCode, 'ko');
+  assert.equal(attempt.options.regionCode, 'kr');
+});
+
+void test('detects Japanese and English Places search languages', () => {
+  const [japanese] = buildVerificationSearchPlan({
+    name: '喫茶サクラ',
+    destination: 'Tokyo',
+    country: 'Japan',
+  });
+  const [english] = buildVerificationSearchPlan({
+    name: 'WYAH Art & Creative Space',
+    area: 'Ubud',
+    destination: 'Bali',
+    country: 'Indonesia',
+  });
+  assert.equal(detectQueryLanguage('喫茶サクラ Tokyo'), 'ja');
+  assert.equal(japanese.options.languageCode, 'ja');
+  assert.equal(japanese.options.regionCode, 'jp');
+  assert.equal(english.query, 'WYAH Art & Creative Space Ubud Bali Indonesia');
+  assert.equal(english.options.languageCode, 'en');
+  assert.equal(english.options.regionCode, 'id');
+  assert.equal(countryRegionCode('Thailand'), 'th');
+});
+
+void test('uses an existing coordinate as location bias and isolates cache keys', () => {
+  const [attempt] = buildVerificationSearchPlan({
+    name: 'Sample Cafe',
+    countryCode: 'KR',
+    latitude: 37.5796,
+    longitude: 126.971,
+  });
+  assert.deepEqual(attempt.options.locationBias, {
+    latitude: 37.5796,
+    longitude: 126.971,
+    radiusMeters: 50_000,
+  });
+  const englishKey = buildPlacesSearchCacheKey(attempt.query, attempt.options);
+  const koreanKey = buildPlacesSearchCacheKey(attempt.query, {
+    ...attempt.options,
+    languageCode: 'ko',
+  });
+  const noBiasKey = buildPlacesSearchCacheKey(attempt.query, {
+    ...attempt.options,
+    locationBias: null,
+  });
+  assert.notEqual(englishKey, koreanKey);
+  assert.notEqual(englishKey, noBiasKey);
+});
+
+void test('runs only one alternate-name fallback and stops after a match', async () => {
+  const attempts = buildVerificationSearchPlan({
+    name: '오버트 커피바',
+    alternateNames: ['Ouvert Coffee Bar', 'Unused Third Name'],
+    area: '서촌',
+    destination: '서울',
+    country: '대한민국',
+  });
+  const queries: string[] = [];
+  const outcome = await runPlaceSearchPlan(
+    attempts,
+    async (attempt) => {
+      queries.push(attempt.query);
+      return attempt.name === 'Ouvert Coffee Bar' ? ['matched'] : [];
+    },
+    (_attempt, results) => (results.length ? 1 : 0),
+    0.5,
+  );
+  assert.equal(outcome.calls, 2);
+  assert.deepEqual(queries, [
+    '오버트 커피바 서촌 서울 대한민국',
+    'Ouvert Coffee Bar 서촌 서울 대한민국',
+  ]);
+  assert.equal(outcome.attempt?.name, 'Ouvert Coffee Bar');
+});
 void test('maps Google types to MVP categories', () => {
   assert.equal(mapPlaceCategory(['coffee_shop', 'food']), 'Cafe');
   assert.equal(mapPlaceCategory(['park']), 'Nature');
