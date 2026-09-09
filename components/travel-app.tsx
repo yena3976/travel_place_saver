@@ -213,11 +213,8 @@ function RegionCard({
           {countryLabel(region.country)}
         </span>
       </span>
-      <span className="text-right">
-        <span className="block text-lg font-bold text-primary">
-          {region.count}
-        </span>
-        <span className="block text-xs text-muted-foreground">곳</span>
+      <span className="shrink-0 whitespace-nowrap text-lg font-bold text-primary">
+        {region.count}개
       </span>
       <ChevronRight className="size-5 text-primary/55" />
     </button>
@@ -255,7 +252,7 @@ function HomeView({
         </h1>
         {state === 'ready' && (
           <p className="mt-3 text-base text-muted-foreground">
-            총 <span className="font-semibold text-foreground">{total}</span>곳
+            총 <span className="font-semibold text-foreground">{total}</span>개
             {' · '}여행지 {regions.length}개
           </p>
         )}
@@ -1070,7 +1067,7 @@ function RegionView({
       <div className="mb-7 rounded-[1.5rem] bg-primary p-5 text-primary-foreground">
         <p className="text-sm opacity-75">{countryLabel(country)}</p>
         <p className="mt-1 text-3xl font-semibold">
-          저장한 장소 {places.length}곳
+          저장한 장소 {places.length}개
         </p>
       </div>
       {state === 'loading' && (
@@ -1104,7 +1101,7 @@ function RegionView({
                   {locationLabel(area) ?? area}
                 </h2>
                 <span className="text-sm text-muted-foreground">
-                  {items?.length}곳
+                  {items?.length}개
                 </span>
               </div>
               <div className="space-y-3">
